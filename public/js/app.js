@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCYndV2aTf1KEB6yBgjjhOoUIqUKf3jsJY",
   authDomain: "taikoo-dismissal-system.firebaseapp.com",
@@ -27,29 +26,20 @@ const ALL_CLASSES = [
 const DISMISSAL_DOC_REF = doc(db, "dismissal_system", "live_status");
 const THREE_MINUTES_MS = 3 * 60 * 1000;
 
-// UI Loading 控制
-function showLoading(show) {
-  const overlay = document.getElementById('loadingOverlay');
-  if (overlay) {
-    overlay.style.display = show ? 'flex' : 'none';
-  }
+function getGradeClass(className) {
+  const grade = className.charAt(0);
+  return `p${grade}`;
 }
 
-// 綁定頁面切換事件
-document.addEventListener('DOMContentLoaded', () => {
-  const btnShowDisplay = document.getElementById('btnShowDisplay');
-  const btnShowControl = document.getElementById('btnShowControl');
-  const btnResetAll = document.getElementById('btnResetAll');
+function showLoading(show) {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.style.display = show ? 'flex' : 'none';
+}
 
-  if (btnShowDisplay) {
-    btnShowDisplay.addEventListener('click', () => switchView('display'));
-  }
-  if (btnShowControl) {
-    btnShowControl.addEventListener('click', () => switchView('control'));
-  }
-  if (btnResetAll) {
-    btnResetAll.addEventListener('click', resetAllClasses);
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnShowDisplay')?.addEventListener('click', () => switchView('display'));
+  document.getElementById('btnShowControl')?.addEventListener('click', () => switchView('control'));
+  document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
 });
 
 function switchView(viewName) {
@@ -72,12 +62,10 @@ function switchView(viewName) {
   }
 }
 
-// Realtime 資料同步
 function initRealtimeListener() {
   onSnapshot(DISMISSAL_DOC_REF, (docSnap) => {
     showLoading(false);
     let data = docSnap.exists() ? docSnap.data() : {};
-
     const now = Date.now();
     let hasUpdates = false;
 
@@ -105,7 +93,7 @@ function initRealtimeListener() {
 }
 
 function renderDisplayView(data) {
-  const activeContainer = document.getElementById('activeClassesList');
+  const activeWrapper = document.getElementById('activeClassesWrapper');
   const gridContainer = document.getElementById('displayClassGrid');
 
   const activeClasses = [];
@@ -118,17 +106,29 @@ function renderDisplayView(data) {
     }
 
     const item = document.createElement('div');
-    item.className = `status-item status-${clsInfo.status}`;
+    const gradeClass = getGradeClass(cls);
+    item.className = `status-box ${gradeClass} status-${clsInfo.status}`;
     item.textContent = cls;
     gridContainer.appendChild(item);
   });
 
-  if (activeClasses.length > 0) {
-    activeContainer.innerHTML = activeClasses
-      .map(cls => `<span class="class-badge-large">${cls}</span>`)
-      .join('');
+  // 流暢 Slide Show 邏輯判斷
+  if (activeClasses.length === 0) {
+    activeWrapper.innerHTML = `<span class="placeholder-text">現時沒有班別放學中</span>`;
+  } else if (activeClasses.length === 1) {
+    // 只有 1 班：置中放大顯示
+    const cls = activeClasses[0];
+    const gradeClass = getGradeClass(cls);
+    activeWrapper.innerHTML = `<div class="single-active-badge ${gradeClass}">${cls}</div>`;
   } else {
-    activeContainer.innerHTML = `<span class="placeholder-text">現時沒有班別放學中</span>`;
+    // 2 班或以上：無縫雙重跑馬燈
+    const itemsHTML = activeClasses.map(cls => `<span class="badge-item ${getGradeClass(cls)}">${cls}</span>`).join('');
+    activeWrapper.innerHTML = `
+      <div class="marquee-track">
+        ${itemsHTML}
+        ${itemsHTML}
+      </div>
+    `;
   }
 }
 
@@ -139,7 +139,8 @@ function renderControlView(data) {
   ALL_CLASSES.forEach(cls => {
     const clsInfo = data[cls] || { status: 'waiting' };
     const btn = document.createElement('button');
-    btn.className = `class-btn status-${clsInfo.status}`;
+    const gradeClass = getGradeClass(cls);
+    btn.className = `control-btn ${gradeClass} status-${clsInfo.status}`;
     btn.textContent = cls;
 
     btn.addEventListener('click', () => triggerClassDismissal(cls));
@@ -187,6 +188,5 @@ async function resetAllClasses() {
   }
 }
 
-// 啟動系統
 showLoading(true);
 initRealtimeListener();

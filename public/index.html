@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>太古小學 - 放學指示系統</title>
-  <!-- 使用相對路徑引入 CSS -->
   <link rel="stylesheet" href="/css/style.css">
-  <!-- SweetAlert2 美化彈窗 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
@@ -21,7 +19,7 @@
     <!-- 強制頁首 Header -->
     <header style="display: flex; align-items: center; gap: 12px; padding: 10px 0; margin-bottom: 20px;">
       <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(0,0,0,0.1);">
-      <span style="font-size: 20px; font-weight: bold;">太古小學放學指示系統</span>
+      <span style="font-size: 22px; font-weight: bold;">太古小學放學指示系統</span>
     </header>
 
     <!-- 視圖切換導航 -->
@@ -32,18 +30,18 @@
 
     <!-- 視圖 1：大螢幕展示屏 -->
     <main id="displayView" class="view-section active">
-      <div class="glass-card active-dismissal-card">
+      <!-- 正在放學班別卡片 -->
+      <div class="card active-dismissal-card">
         <h2>正在放學班別</h2>
-        <div class="marquee-container">
-          <div id="activeClassesList" class="marquee-content">
-            <span class="placeholder-text">現時沒有班別放學中</span>
-          </div>
+        <div id="activeClassesWrapper" class="active-wrapper">
+          <span class="placeholder-text">現時沒有班別放學中</span>
         </div>
       </div>
 
-      <div class="glass-card status-overview-card">
-        <h3>全校各班放學狀態</h3>
-        <div id="displayClassGrid" class="class-grid-readonly">
+      <!-- 全校各班放學狀態（放大佔據主要視圖 80%） -->
+      <div class="card status-overview-card">
+        <h2>全校各班放學狀態</h2>
+        <div id="displayClassGrid" class="class-grid-large">
           <!-- 班別狀態列表 -->
         </div>
       </div>
@@ -51,7 +49,7 @@
 
     <!-- 視圖 2：地下控制台 -->
     <main id="controlView" class="view-section">
-      <div class="glass-card control-panel">
+      <div class="card control-panel">
         <div class="control-header">
           <h2>放學控制台</h2>
           <button id="btnResetAll" class="btn-reset">🔄 重置所有班別</button>
@@ -69,7 +67,6 @@
     </footer>
   </div>
 
-  <!-- 使用相對路徑引入 JS Module -->
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>

@@ -1,12 +1,16 @@
 :root {
-  --bg-gradient: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.7);
-  --glass-blur: blur(20px);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-  --text-main: #2d3748;
-  --accent-active: #38a169;
-  --accent-done: #cbd5e0;
+  --bg-color: #ffffff;
+  --card-bg: #f8fafc;
+  --card-border: #e2e8f0;
+  --text-main: #1a202c;
+  
+  /* 各級專屬色彩定義 */
+  --p1-color: #F43545;
+  --p2-color: #FF8901;
+  --p3-color: #FAD717;
+  --p4-color: #00BA71;
+  --p5-color: #00C2DE;
+  --p6-color: #00418D;
 }
 
 * {
@@ -17,14 +21,14 @@
 }
 
 body {
-  background: var(--bg-gradient);
+  background: var(--bg-color);
   min-height: 100vh;
   color: var(--text-main);
   padding: 20px;
 }
 
 .app-container {
-  max-width: 1000px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -32,21 +36,18 @@ body {
 .loading-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.9);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  transition: opacity 0.3s ease;
 }
 
 .spinner {
-  width: 48px;
-  height: 48px;
-  border: 5px solid rgba(102, 126, 234, 0.2);
-  border-top: 5px solid #5a67d8;
+  width: 48px; height: 48px;
+  border: 5px solid #e2e8f0;
+  border-top: 5px solid #00418D;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 12px;
@@ -57,14 +58,11 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* 毛玻璃卡片 */
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  box-shadow: var(--glass-shadow);
+/* 卡片與導航 */
+.card {
+  background: var(--card-bg);
+  border: 2px solid var(--card-border);
+  border-radius: 20px;
   padding: 24px;
   margin-bottom: 20px;
 }
@@ -78,117 +76,137 @@ body {
 .nav-btn {
   flex: 1;
   padding: 14px;
-  border: none;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.4);
-  color: #4a5568;
+  border: 2px solid var(--card-border);
+  border-radius: 14px;
+  background: #f1f5f9;
+  color: #475569;
   font-weight: bold;
   font-size: 16px;
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
 }
 
-.nav-btn.active, .nav-btn:hover {
-  background: #ffffff;
-  color: #3182ce;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+.nav-btn.active {
+  background: #00418D;
+  color: #ffffff;
+  border-color: #00418D;
 }
 
 .view-section { display: none; }
 .view-section.active { display: block; }
 
+/* 正在放學區域 */
 .active-dismissal-card {
   text-align: center;
-  background: rgba(255, 255, 255, 0.65);
-}
-
-.active-dismissal-card h2 {
-  font-size: 22px;
-  margin-bottom: 16px;
-  color: #2b6cb0;
-}
-
-.marquee-container {
-  overflow: hidden;
-  white-space: nowrap;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 18px;
-  padding: 20px 0;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-}
-
-.marquee-content {
-  display: inline-block;
-  white-space: nowrap;
-  animation: marqueeSlide 10s linear infinite;
-}
-
-@keyframes marqueeSlide {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
-}
-
-.class-badge-large {
-  display: inline-block;
-  background: var(--accent-active);
-  color: white;
-  font-size: 42px;
-  font-weight: 800;
-  padding: 10px 28px;
-  margin: 0 12px;
-  border-radius: 18px;
-  box-shadow: 0 8px 16px rgba(56, 161, 105, 0.3);
-}
-
-.placeholder-text {
-  font-size: 18px;
-  color: #718096;
-}
-
-.control-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.subtitle {
-  font-size: 14px;
-  color: #4a5568;
-  margin-bottom: 18px;
-}
-
-.class-grid-interactive, .class-grid-readonly {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
-  gap: 10px;
-}
-
-.class-btn, .status-item {
-  padding: 14px 6px;
-  border-radius: 14px;
-  text-align: center;
-  font-size: 18px;
-  font-weight: bold;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  transition: all 0.2s ease;
-}
-
-.class-btn {
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.7);
-  color: #2d3748;
-}
-
-.class-btn:hover {
-  transform: translateY(-2px);
   background: #ffffff;
 }
 
-.status-waiting { background: rgba(255, 255, 255, 0.4); color: #718096; }
-.status-active { background: var(--accent-active); color: white; animation: pulse 1.5s infinite; }
-.status-done { background: var(--accent-done); color: #a0aec0; text-decoration: line-through; }
+.active-dismissal-card h2 {
+  font-size: 24px;
+  margin-bottom: 16px;
+  color: #00418D;
+}
+
+.active-wrapper {
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 單一班別：超大專屬彩色顯示 */
+.single-active-badge {
+  font-size: 56px;
+  font-weight: 900;
+  padding: 10px 40px;
+  border-radius: 20px;
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  animation: pulse 1.5s infinite;
+}
+
+/* 多班別流暢跑馬燈 */
+.marquee-track {
+  display: flex;
+  gap: 20px;
+  white-space: nowrap;
+  animation: marquee 12s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.badge-item {
+  font-size: 42px;
+  font-weight: 800;
+  padding: 8px 30px;
+  border-radius: 16px;
+  color: #ffffff;
+}
+
+.placeholder-text {
+  font-size: 20px;
+  color: #94a3b8;
+}
+
+/* 全校狀態網格 (佔螢幕大面積視圖) */
+.status-overview-card h2 {
+  font-size: 26px;
+  margin-bottom: 20px;
+  color: #00418D;
+}
+
+.class-grid-large {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  min-height: 50vh; /* 佔據螢幕主要比例 */
+}
+
+.status-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+  border-radius: 16px;
+  padding: 24px 10px;
+  border: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+/* 狀態樣式：各級套用專屬色 */
+.p1 { --grade-color: var(--p1-color); }
+.p2 { --grade-color: var(--p2-color); }
+.p3 { --grade-color: var(--p3-color); }
+.p4 { --grade-color: var(--p4-color); }
+.p5 { --grade-color: var(--p5-color); }
+.p6 { --grade-color: var(--p6-color); }
+
+/* 等候中：空心級數顏色邊框 */
+.status-waiting {
+  background: #ffffff;
+  color: var(--grade-color);
+  border-color: var(--grade-color);
+}
+
+/* 正在放學：填滿級數顏色並閃爍 */
+.status-active {
+  background: var(--grade-color);
+  color: #ffffff;
+  animation: pulse 1.5s infinite;
+}
+
+/* 已放學：灰底刪除線 */
+.status-done {
+  background: #e2e8f0;
+  color: #94a3b8;
+  border-color: #cbd5e1;
+  text-decoration: line-through;
+}
 
 @keyframes pulse {
   0% { transform: scale(1); }
@@ -196,13 +214,28 @@ body {
   100% { transform: scale(1); }
 }
 
+/* 控制台樣式 */
+.class-grid-interactive {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.control-btn {
+  padding: 16px 8px;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 2px solid var(--grade-color);
+}
+
 .btn-reset {
-  background: #e53e3e;
+  background: #ef4444;
   color: white;
   border: none;
-  padding: 8px 14px;
+  padding: 10px 18px;
   border-radius: 10px;
-  cursor: pointer;
   font-weight: bold;
+  cursor: pointer;
 }
-.btn-reset:hover { background: #c53030; }
