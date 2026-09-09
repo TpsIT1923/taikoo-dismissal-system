@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>太古小學 - 放學指示系統</title>
-  <link rel="stylesheet" href="css/style.css">
+  <!-- 使用相對路徑引入 CSS -->
+  <link rel="stylesheet" href="./css/style.css">
   <!-- SweetAlert2 美化彈窗 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -25,8 +26,8 @@
 
     <!-- 視圖切換導航 -->
     <nav class="view-toggle">
-      <button id="btnShowDisplay" class="nav-btn active" onclick="switchView('display')">📺 大螢幕展示屏 (家長)</button>
-      <button id="btnShowControl" class="nav-btn" onclick="switchView('control')">📱 地下控制台 (老師)</button>
+      <button id="btnShowDisplay" class="nav-btn active">📺 大螢幕展示屏 (家長)</button>
+      <button id="btnShowControl" class="nav-btn">📱 地下控制台 (老師)</button>
     </nav>
 
     <!-- 視圖 1：大螢幕展示屏 -->
@@ -53,7 +54,7 @@
       <div class="glass-card control-panel">
         <div class="control-header">
           <h2>放學控制台</h2>
-          <button class="btn-reset" onclick="resetAllClasses()">🔄 重置所有班別</button>
+          <button id="btnResetAll" class="btn-reset">🔄 重置所有班別</button>
         </div>
         <p class="subtitle">點擊班別開啟「正在放學」（3分鐘後自動歸類為已放學）</p>
         <div id="controlClassGrid" class="class-grid-interactive">
@@ -68,7 +69,7 @@
     </footer>
   </div>
 
-  <!-- 引入主程式邏輯 -->
-  <script type="module" src="js/app.js"></script>
+  <!-- 使用相對路徑引入 JS Module -->
+  <script type="module" src="./js/app.js"></script>
 </body>
 </html>
