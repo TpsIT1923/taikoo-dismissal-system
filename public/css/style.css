@@ -40,12 +40,42 @@ body {
   flex-direction: column;
 }
 
-/* 右上角固定電子時鐘 */
-.header-clock {
+/* 右上角工具列 */
+.header-right-tools {
   position: absolute;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 語音按鈕 */
+.audio-toggle-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  border: 1px solid var(--card-border);
+  transition: all 0.2s;
+}
+
+.audio-toggle-btn.muted {
+  background: #fef2f2;
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+
+.audio-toggle-btn.active {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #86efac;
+}
+
+/* 電子時鐘 */
+.header-clock {
   font-size: 18px;
   font-weight: bold;
   font-family: 'Courier New', Courier, monospace;
@@ -117,7 +147,6 @@ body {
   text-align: center;
 }
 
-/* 右上角 Cross 關閉按鈕 */
 .modal-close-btn {
   position: absolute;
   top: 12px;

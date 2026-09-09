@@ -33,8 +33,14 @@ const DISMISSAL_DOC_REF = doc(db, "dismissal_system", "live_status");
 const THREE_MINUTES_MS = 3 * 60 * 1000;
 
 let currentFirestoreData = {};
-let currentView = 'display'; // 記錄目前處於哪個頁面 (display / control)
-let isModalClosedByUser = false; // 紀錄使用者是否手動按了 ✕ 關閉
+let previousFirestoreData = {};
+let currentView = 'display';
+let isModalClosedByUser = false;
+let isAudioEnabled = false;
+
+// 語音廣播對列
+let speechQueue = [];
+let isSpeaking = false;
 
 function getGradeClass(className) {
   return `p${className.charAt(0)}`;
@@ -45,6 +51,7 @@ function showLoading(show) {
   if (overlay) overlay.style.display = show ? 'flex' : 'none';
 }
 
+// 初始化電子時鐘
 function initLiveClock() {
   const clockEl = document.getElementById('liveClock');
   if (!clockEl) return;
@@ -63,6 +70,94 @@ function initLiveClock() {
 
 initLiveClock();
 
+// 🔊 語音與音效系統
+function initAudioSystem() {
+  const btnToggleAudio = document.getElementById('btnToggleAudio');
+  if (!btnToggleAudio) return;
+
+  btnToggleAudio.addEventListener('click', () => {
+    isAudioEnabled = !isAudioEnabled;
+    if (isAudioEnabled) {
+      btnToggleAudio.textContent = "🔊 語音廣播已開啟";
+      btnToggleAudio.classList.remove('muted');
+      btnToggleAudio.classList.add('active');
+      speakCantonese("語音廣播系統已開啟");
+    } else {
+      btnToggleAudio.textContent = "🔇 點擊開啟語音廣播";
+      btnToggleAudio.classList.remove('active');
+      btnToggleAudio.classList.add('muted');
+      window.speechSynthesis.cancel();
+    }
+  });
+}
+
+// 播放叮噹提示音 (使用 Web Audio API 生成純正叮噹聲)
+function playDingDong() {
+  if (!isAudioEnabled) return;
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // 高音叮
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(659.25, audioCtx.currentTime); // E5
+    gain1.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start();
+    osc1.stop(audioCtx.currentTime + 0.8);
+
+    // 低音噹
+    setTimeout(() => {
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+      gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.start();
+      osc2.stop(audioCtx.currentTime + 1.2);
+    }, 300);
+  } catch (e) {
+    console.log("AudioContext Error", e);
+  }
+}
+
+// 廣東話語音朗讀
+function speakCantonese(text) {
+  if (!isAudioEnabled || !('speechSynthesis' in window)) return;
+
+  speechQueue.push(text);
+  processSpeechQueue();
+}
+
+function processSpeechQueue() {
+  if (isSpeaking || speechQueue.length === 0) return;
+
+  isSpeaking = true;
+  const textToSpeak = speechQueue.shift();
+  const utterance = new SpeechSynthesisUtterance(textToSpeak);
+  
+  utterance.lang = 'zh-HK'; // 廣東話
+  utterance.rate = 0.9;     // 稍微放慢語速，讓大螢幕廣播更清楚
+
+  utterance.onend = () => {
+    isSpeaking = false;
+    processSpeechQueue();
+  };
+
+  utterance.onerror = () => {
+    isSpeaking = false;
+    processSpeechQueue();
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnShowDisplay')?.addEventListener('click', () => switchView('display'));
   document.getElementById('btnShowControl')?.addEventListener('click', () => switchView('control'));
@@ -72,13 +167,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnClearNotice')?.addEventListener('click', clearNotice);
   document.getElementById('btnManagePresets')?.addEventListener('click', managePresets);
 
-  // 關閉 Pop-up 按鈕事件
   document.getElementById('btnCloseNoticeModal')?.addEventListener('click', () => {
     isModalClosedByUser = true;
     const modal = document.getElementById('noticeModal');
     if (modal) modal.classList.remove('active');
   });
 
+  initAudioSystem();
   setInterval(checkAndExpireClasses, 1000);
 });
 
@@ -102,7 +197,6 @@ function switchView(viewName) {
     btnShowControl.classList.add('active');
   }
 
-  // 切換頁面時重新判斷是否要顯示 Pop-up
   renderNoticeOverlay(currentFirestoreData);
 }
 
@@ -128,18 +222,60 @@ function checkAndExpireClasses() {
   }
 }
 
+// ⏰ 每日自動 Reset 檢查機制
+function checkDailyAutoReset(data) {
+  const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const lastResetDate = data._lastResetDate || "";
+
+  if (lastResetDate !== todayStr) {
+    // 發現是新的一天，自動進行重置
+    const resetData = {};
+    ALL_CLASSES.forEach(cls => {
+      resetData[cls] = { status: 'waiting', timestamp: 0 };
+    });
+    resetData['_announcement'] = '';
+    resetData['_lastResetDate'] = todayStr;
+    resetData['_custom_presets'] = data._custom_presets || DEFAULT_PRESETS;
+
+    setDoc(DISMISSAL_DOC_REF, resetData);
+    return true;
+  }
+  return false;
+}
+
+// 即時監聽資料庫變更
 function initRealtimeListener() {
   onSnapshot(DISMISSAL_DOC_REF, (docSnap) => {
     showLoading(false);
     const newData = docSnap.exists() ? docSnap.data() : {};
 
-    // 如果後台通告有改變，重置手動關閉標記，讓新通告能再次跳出
-    if (newData._announcement !== currentFirestoreData._announcement) {
+    // 1. 檢查是否需要每日自動 Reset
+    if (checkDailyAutoReset(newData)) return;
+
+    // 2. 檢測是否有新班別開始放學，觸發語音廣播
+    ALL_CLASSES.forEach(cls => {
+      const oldStatus = previousFirestoreData[cls]?.status;
+      const newStatus = newData[cls]?.status;
+
+      if (oldStatus !== 'active' && newStatus === 'active') {
+        const gradeLetter = cls.charAt(1);
+        const gradeNum = cls.charAt(0);
+        speakCantonese(`請 ${gradeNum} ${gradeLetter} 班家長準備，你嘅小朋友放學啦！`);
+      }
+    });
+
+    // 3. 檢測是否有新重要通告，觸發叮噹聲與語音
+    if (newData._announcement && newData._announcement !== previousFirestoreData._announcement) {
       isModalClosedByUser = false;
+      playDingDong();
+      setTimeout(() => {
+        speakCantonese(`重要通告：${newData._announcement}`);
+      }, 1000);
     }
 
     currentFirestoreData = newData;
-    
+    previousFirestoreData = JSON.parse(JSON.stringify(newData));
+
     checkAndExpireClasses();
 
     renderDisplayView(currentFirestoreData);
@@ -153,7 +289,6 @@ function initRealtimeListener() {
   });
 }
 
-// 核心修正：只喺大螢幕 (currentView === 'display') 顯示 Pop-up
 function renderNoticeOverlay(data) {
   const modal = document.getElementById('noticeModal');
   const modalBody = document.getElementById('noticeModalBody');
@@ -161,7 +296,6 @@ function renderNoticeOverlay(data) {
 
   const hasNotice = data._announcement && data._announcement.trim() !== '';
 
-  // 條件：必須有通告內容 + 處於放學狀態大螢幕頁面 + 使用者沒有手動按下 ✕ 關閉
   if (hasNotice && currentView === 'display' && !isModalClosedByUser) {
     modalBody.textContent = data._announcement;
     modal.classList.add('active');
@@ -374,11 +508,13 @@ async function resetAllClasses() {
     if (result.isConfirmed) {
       showLoading(true);
       const resetData = {};
+      const todayStr = new Date().toISOString().split('T')[0];
       ALL_CLASSES.forEach(cls => {
         resetData[cls] = { status: 'waiting', timestamp: 0 };
       });
       resetData['_announcement'] = '';
-      await setDoc(DISMISSAL_DOC_REF, resetData);
+      resetData['_lastResetDate'] = todayStr;
+      await setDoc(DISMISSAL_DOC_REF, resetData, { merge: true });
       showLoading(false);
       Swal.fire('已重置！', '所有班別及通告已清空。', 'success');
     }
