@@ -24,9 +24,9 @@ const ALL_CLASSES = [
 ];
 
 const DISMISSAL_DOC_REF = doc(db, "dismissal_system", "live_status");
-const THREE_MINUTES_MS = 3 * 60 * 1000; // 3分鐘 = 180,000 毫秒
+const THREE_MINUTES_MS = 3 * 60 * 1000;
 
-let currentFirestoreData = {}; // 快存最新資料
+let currentFirestoreData = {};
 
 function getGradeClass(className) {
   return `p${className.charAt(0)}`;
@@ -37,7 +37,6 @@ function showLoading(show) {
   if (overlay) overlay.style.display = show ? 'flex' : 'none';
 }
 
-// 右上角即時電子時鐘
 function initLiveClock() {
   const clockEl = document.getElementById('liveClock');
   if (!clockEl) return;
@@ -61,7 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnShowControl')?.addEventListener('click', () => switchView('control'));
   document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
 
-  // 核心改進：每秒背景檢查「是否已滿 3 分鐘」，自動將 active 轉為 done
   setInterval(checkAndExpireClasses, 1000);
 });
 
@@ -85,7 +83,6 @@ function switchView(viewName) {
   }
 }
 
-// 每秒自動檢查過期班別（滿3分鐘）
 function checkAndExpireClasses() {
   if (!currentFirestoreData) return;
   const now = Date.now();
@@ -94,7 +91,6 @@ function checkAndExpireClasses() {
   ALL_CLASSES.forEach(cls => {
     const clsInfo = currentFirestoreData[cls];
     if (clsInfo && clsInfo.status === 'active') {
-      // 檢查是否超過 3 分鐘
       if (now - clsInfo.timestamp >= THREE_MINUTES_MS) {
         clsInfo.status = 'done';
         needUpdateDb = true;
@@ -102,7 +98,6 @@ function checkAndExpireClasses() {
     }
   });
 
-  // 如果有班別過期，立即寫入 Firebase 資料庫並刷新畫面
   if (needUpdateDb) {
     updateDoc(DISMISSAL_DOC_REF, currentFirestoreData);
     renderDisplayView(currentFirestoreData);
@@ -115,7 +110,6 @@ function initRealtimeListener() {
     showLoading(false);
     currentFirestoreData = docSnap.exists() ? docSnap.data() : {};
     
-    // 立即做一次過期檢查
     checkAndExpireClasses();
 
     renderDisplayView(currentFirestoreData);
@@ -148,11 +142,9 @@ function renderDisplayView(data) {
     gridContainer.appendChild(item);
   });
 
-  // 渲染正在放學班別區域 (Slide Show / Static Header)
   if (activeClasses.length === 0) {
     activeWrapper.innerHTML = `<span class="placeholder-text">現時沒有班別放學中</span>`;
   } else if (activeClasses.length <= 5) {
-    // 數量較少時：靜態排列，絕不重複複製！
     const badgesHTML = activeClasses.map(cls => {
       const gradeClass = getGradeClass(cls);
       return `<span class="badge-item ${gradeClass}">${cls}</span>`;
@@ -160,18 +152,15 @@ function renderDisplayView(data) {
 
     activeWrapper.innerHTML = `<div class="static-badge-container">${badgesHTML}</div>`;
   } else {
-    // 班別多於 5 班時：啟動滾動跑馬燈
-    const generateBadges = (arr) => arr.map(cls => {
+    // 多於 5 班：觸發從右到左完全滑出動畫
+    const badgesHTML = activeClasses.map(cls => {
       const gradeClass = getGradeClass(cls);
       return `<span class="badge-item ${gradeClass}">${cls}</span>`;
     }).join('');
 
-    const trackHTML = generateBadges(activeClasses);
-
     activeWrapper.innerHTML = `
-      <div class="marquee-track">
-        ${trackHTML}
-        ${trackHTML}
+      <div class="marquee-track-slideout">
+        ${badgesHTML}
       </div>
     `;
   }

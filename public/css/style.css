@@ -111,7 +111,7 @@ body {
 .view-section {
   display: none;
   flex: 1;
-  min-height: 0; /* 關鍵：允許 Flexbox 子項彈性壓縮 */
+  min-height: 0;
 }
 
 .view-section.active {
@@ -136,7 +136,7 @@ body {
   text-align: center;
 }
 
-/* 正在放學區域 (Slide Show & Static Container) */
+/* 正在放學區域 */
 .active-dismissal-card {
   background: #ffffff;
   flex-shrink: 0;
@@ -158,7 +158,7 @@ body {
   color: #94a3b8;
 }
 
-/* 靜態居中顯示 (班別少於或等於 5 班時) */
+/* 靜態居中顯示 (班別 <= 5 班時) */
 .static-badge-container {
   display: flex;
   gap: 15px;
@@ -167,18 +167,24 @@ body {
   width: 100%;
 }
 
-/* 動態跑馬燈 (班別多於 5 班時) */
-.marquee-track {
+/* 全進全出滑動動畫 (班別 > 5 班時)：由右側進入，完全滑出左側消失 */
+.marquee-track-slideout {
   display: inline-flex;
   gap: 20px;
   white-space: nowrap;
-  animation: marqueeSlide 12s linear infinite;
+  position: absolute;
+  left: 0;
+  animation: slideFullPass 10s linear infinite;
   will-change: transform;
 }
 
-@keyframes marqueeSlide {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+@keyframes slideFullPass {
+  0% {
+    transform: translateX(100vw); /* 完全在右邊螢幕外 */
+  }
+  100% {
+    transform: translateX(-100%); /* 完全滑出左邊畫面 */
+  }
 }
 
 .badge-item {
@@ -191,7 +197,7 @@ body {
   flex-shrink: 0;
 }
 
-/* 靜態/動態標籤顏色繼承級數 */
+/* 級數標籤顏色 */
 .badge-item.p1 { background-color: var(--p1-color); }
 .badge-item.p2 { background-color: var(--p2-color); }
 .badge-item.p3 { background-color: var(--p3-color); }
@@ -199,7 +205,7 @@ body {
 .badge-item.p5 { background-color: var(--p5-color); }
 .badge-item.p6 { background-color: var(--p6-color); }
 
-/* 全校狀態網格 (自適應剩餘螢幕高度) */
+/* 全校狀態網格 */
 .status-overview-card {
   flex: 1;
   min-height: 0;
@@ -211,7 +217,7 @@ body {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(6, 1fr); /* 強制 6 行 5 列，高度自動平分 */
+  grid-template-rows: repeat(6, 1fr);
   gap: 6px;
   min-height: 0;
 }
@@ -234,7 +240,7 @@ body {
 .p5 { --grade-color: var(--p5-color); }
 .p6 { --grade-color: var(--p6-color); }
 
-/* 狀態底色樣式 */
+/* 狀態底色 */
 .status-waiting {
   background: #f1f5f9;
   color: var(--grade-color);
@@ -261,7 +267,7 @@ body {
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* 地下控制台樣式 */
+/* 控制台樣式 */
 .control-panel {
   flex: 1;
   display: flex;
