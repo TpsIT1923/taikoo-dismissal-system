@@ -35,7 +35,7 @@ function showLoading(show) {
   if (overlay) overlay.style.display = show ? 'flex' : 'none';
 }
 
-// 右上角即時電子時鐘 (包含日期 + 時間 + 秒數)
+// 右上角即時電子時鐘
 function initLiveClock() {
   const clockEl = document.getElementById('liveClock');
   if (!clockEl) return;
@@ -52,7 +52,7 @@ function initLiveClock() {
   setInterval(updateClock, 1000);
 }
 
-// 立即啟動時鐘
+// 立即執行時鐘初始化
 initLiveClock();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -131,24 +131,28 @@ function renderDisplayView(data) {
     gridContainer.appendChild(item);
   });
 
-  // Slide Show 邏輯：就算得 1 班都強制做動畫循環
+  // Slide Show 邏輯：複製雙倍內容達成無縫 Seamless Loop，解決切字問題
   if (activeClasses.length === 0) {
     activeWrapper.innerHTML = `<span class="placeholder-text">現時沒有班別放學中</span>`;
   } else {
-    // 當班別少過 4 班時，自動複製倍數內容，確保 Slide 滑動順暢無縫
-    let repeatCount = activeClasses.length < 4 ? 6 : 2;
-    let listHTML = '';
-    
-    for (let i = 0; i < repeatCount; i++) {
-      activeClasses.forEach(cls => {
-        const gradeClass = getGradeClass(cls);
-        listHTML += `<span class="badge-item ${gradeClass}" style="background-color: var(--${gradeClass}-color);">${cls}</span>`;
-      });
+    // 確保有足夠的卡片組成橫向無縫滾動
+    let repeatedList = [...activeClasses];
+    while (repeatedList.length < 8) {
+      repeatedList = repeatedList.concat(activeClasses);
     }
+
+    // 產生兩組一模一樣的 HTML 軌道以供無縫動態位移
+    const generateBadges = (arr) => arr.map(cls => {
+      const gradeClass = getGradeClass(cls);
+      return `<span class="badge-item ${gradeClass}" style="background-color: var(--${gradeClass}-color);">${cls}</span>`;
+    }).join('');
+
+    const trackHTML = generateBadges(repeatedList);
 
     activeWrapper.innerHTML = `
       <div class="marquee-track">
-        ${listHTML}
+        ${trackHTML}
+        ${trackHTML}
       </div>
     `;
   }
