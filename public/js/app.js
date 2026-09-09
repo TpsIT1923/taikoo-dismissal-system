@@ -23,6 +23,13 @@ const ALL_CLASSES = [
   "6A", "6B", "6C", "6D", "6E"
 ];
 
+// 預設範本（當資料庫未有自訂時使用）
+const DEFAULT_PRESETS = [
+  "暴雨警告生效，所有班別延遲放學。",
+  "請家長到地下禮堂集合等候。",
+  "今日放學程序已全部完成。"
+];
+
 const DISMISSAL_DOC_REF = doc(db, "dismissal_system", "live_status");
 const THREE_MINUTES_MS = 3 * 60 * 1000;
 
@@ -59,6 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnShowDisplay')?.addEventListener('click', () => switchView('display'));
   document.getElementById('btnShowControl')?.addEventListener('click', () => switchView('control'));
   document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
+
+  document.getElementById('btnPublishNotice')?.addEventListener('click', publishNotice);
+  document.getElementById('btnClearNotice')?.addEventListener('click', clearNotice);
+  document.getElementById('btnManagePresets')?.addEventListener('click', managePresets);
 
   setInterval(checkAndExpireClasses, 1000);
 });
@@ -114,12 +125,26 @@ function initRealtimeListener() {
 
     renderDisplayView(currentFirestoreData);
     renderControlView(currentFirestoreData);
+    renderNoticeOverlay(currentFirestoreData);
   }, (error) => {
     showLoading(false);
     if (typeof Swal !== 'undefined') {
       Swal.fire({ icon: 'error', title: '連線錯誤', text: error.message });
     }
   });
+}
+
+function renderNoticeOverlay(data) {
+  const modal = document.getElementById('noticeModal');
+  const modalBody = document.getElementById('noticeModalBody');
+  if (!modal || !modalBody) return;
+
+  if (data._announcement && data._announcement.trim() !== '') {
+    modalBody.textContent = data._announcement;
+    modal.classList.add('active');
+  } else {
+    modal.classList.remove('active');
+  }
 }
 
 function renderDisplayView(data) {
@@ -152,7 +177,6 @@ function renderDisplayView(data) {
 
     activeWrapper.innerHTML = `<div class="static-badge-container">${badgesHTML}</div>`;
   } else {
-    // 多於 5 班：觸發從右到左完全滑出動畫
     const badgesHTML = activeClasses.map(cls => {
       const gradeClass = getGradeClass(cls);
       return `<span class="badge-item ${gradeClass}">${cls}</span>`;
@@ -180,6 +204,124 @@ function renderControlView(data) {
     btn.addEventListener('click', () => triggerClassDismissal(cls));
     gridContainer.appendChild(btn);
   });
+
+  const noticeInput = document.getElementById('noticeInput');
+  if (noticeInput && document.activeElement !== noticeInput) {
+    noticeInput.value = data._announcement || '';
+  }
+
+  // 渲染動態快捷按鈕
+  renderPresetButtons(data._custom_presets || DEFAULT_PRESETS);
+}
+
+function renderPresetButtons(presets) {
+  const container = document.getElementById('presetButtonsContainer');
+  if (!container) return;
+  container.innerHTML = '';
+
+  presets.forEach(msg => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-preset';
+    // 取前8個字作按鈕標題，避免太長
+    btn.textContent = msg.length > 8 ? msg.substring(0, 8) + '...' : msg;
+    btn.title = msg;
+    btn.addEventListener('click', () => {
+      const input = document.getElementById('noticeInput');
+      if (input) input.value = msg;
+    });
+    container.appendChild(btn);
+  });
+}
+
+// ⚙️ 管理快捷範本彈窗
+async function managePresets() {
+  if (typeof Swal === 'undefined') return;
+
+  const currentPresets = currentFirestoreData._custom_presets || DEFAULT_PRESETS;
+  
+  let listHTML = currentPresets.map((p, index) => `
+    <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+      <input type="text" id="preset_input_${index}" value="${p}" class="swal2-input" style="margin: 0; flex: 1; font-size: 14px;">
+      <button class="swal2-cancel swal2-styled" onclick="document.getElementById('preset_input_${index}').parentElement.remove()" style="background:#ef4444; margin:0; padding:6px 10px;">刪除</button>
+    </div>
+  `).join('');
+
+  const { value: formValues } = await Swal.fire({
+    title: '⚙️ 管理快捷範本',
+    html: `
+      <div id="presetInputsWrapper" style="max-height: 250px; overflow-y: auto; text-align: left; padding: 4px;">
+        ${listHTML}
+      </div>
+      <button type="button" id="btnAddMorePreset" class="swal2-confirm swal2-styled" style="background:#10b981; margin-top:10px;">+ 新增範本</button>
+    `,
+    showCancelButton: true,
+    confirmButtonText: '儲存變更',
+    cancelButtonText: '取消',
+    didOpen: () => {
+      document.getElementById('btnAddMorePreset')?.addEventListener('click', () => {
+        const wrapper = document.getElementById('presetInputsWrapper');
+        const newDiv = document.createElement('div');
+        newDiv.style.cssText = "display: flex; gap: 8px; margin-bottom: 8px; align-items: center;";
+        newDiv.innerHTML = `
+          <input type="text" class="swal2-input preset-new-item" placeholder="輸入常用通告內容" style="margin: 0; flex: 1; font-size: 14px;">
+          <button class="swal2-cancel swal2-styled" onclick="this.parentElement.remove()" style="background:#ef4444; margin:0; padding:6px 10px;">刪除</button>
+        `;
+        wrapper.appendChild(newDiv);
+      });
+    },
+    preConfirm: () => {
+      const inputs = document.querySelectorAll('#presetInputsWrapper input');
+      const updatedPresets = [];
+      inputs.forEach(input => {
+        const val = input.value.trim();
+        if (val) updatedPresets.push(val);
+      });
+      return updatedPresets;
+    }
+  });
+
+  if (formValues) {
+    showLoading(true);
+    try {
+      await updateDoc(DISMISSAL_DOC_REF, { _custom_presets: formValues });
+      Swal.fire('已更新！', '快捷範本設定已成功儲存。', 'success');
+    } catch (e) {
+      await setDoc(DISMISSAL_DOC_REF, { _custom_presets: formValues }, { merge: true });
+    } finally {
+      showLoading(false);
+    }
+  }
+}
+
+async function publishNotice() {
+  const input = document.getElementById('noticeInput');
+  const msg = input ? input.value.trim() : '';
+  if (!msg) {
+    if (typeof Swal !== 'undefined') Swal.fire('請輸入通告內容', '', 'info');
+    return;
+  }
+
+  showLoading(true);
+  try {
+    await updateDoc(DISMISSAL_DOC_REF, { _announcement: msg });
+  } catch (e) {
+    await setDoc(DISMISSAL_DOC_REF, { _announcement: msg }, { merge: true });
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function clearNotice() {
+  showLoading(true);
+  try {
+    await updateDoc(DISMISSAL_DOC_REF, { _announcement: '' });
+    const input = document.getElementById('noticeInput');
+    if (input) input.value = '';
+  } catch (e) {
+    console.error(e);
+  } finally {
+    showLoading(false);
+  }
 }
 
 async function triggerClassDismissal(className) {
@@ -215,9 +357,10 @@ async function resetAllClasses() {
       ALL_CLASSES.forEach(cls => {
         resetData[cls] = { status: 'waiting', timestamp: 0 };
       });
+      resetData['_announcement'] = '';
       await setDoc(DISMISSAL_DOC_REF, resetData);
       showLoading(false);
-      Swal.fire('已重置！', '所有班別狀態已清空。', 'success');
+      Swal.fire('已重置！', '所有班別及通告已清空。', 'success');
     }
   }
 }
