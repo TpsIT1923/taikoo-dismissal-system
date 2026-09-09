@@ -136,7 +136,7 @@ body {
   text-align: center;
 }
 
-/* 正在放學區域 (Slide Show) */
+/* 正在放學區域 (Slide Show & Static Container) */
 .active-dismissal-card {
   background: #ffffff;
   flex-shrink: 0;
@@ -158,12 +158,21 @@ body {
   color: #94a3b8;
 }
 
-/* 跑馬燈：採用 CSS inline-flex 防止文字換行切邊 */
+/* 靜態居中顯示 (班別少於或等於 5 班時) */
+.static-badge-container {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+/* 動態跑馬燈 (班別多於 5 班時) */
 .marquee-track {
   display: inline-flex;
   gap: 20px;
   white-space: nowrap;
-  animation: marqueeSlide 10s linear infinite;
+  animation: marqueeSlide 12s linear infinite;
   will-change: transform;
 }
 
@@ -175,12 +184,20 @@ body {
 .badge-item {
   font-size: 28px;
   font-weight: 900;
-  padding: 4px 20px;
+  padding: 4px 22px;
   border-radius: 10px;
   color: #ffffff;
   box-shadow: 0 3px 8px rgba(0,0,0,0.12);
   flex-shrink: 0;
 }
+
+/* 靜態/動態標籤顏色繼承級數 */
+.badge-item.p1 { background-color: var(--p1-color); }
+.badge-item.p2 { background-color: var(--p2-color); }
+.badge-item.p3 { background-color: var(--p3-color); }
+.badge-item.p4 { background-color: var(--p4-color); }
+.badge-item.p5 { background-color: var(--p5-color); }
+.badge-item.p6 { background-color: var(--p6-color); }
 
 /* 全校狀態網格 (自適應剩餘螢幕高度) */
 .status-overview-card {
@@ -217,11 +234,7 @@ body {
 .p5 { --grade-color: var(--p5-color); }
 .p6 { --grade-color: var(--p6-color); }
 
-/* 狀態底色樣式：
-   1. 未放學 (waiting)：全灰底色 + 級數專屬色字體
-   2. 正在放學 (active)：級數專屬色背景 + 白字 + 閃爍
-   3. 已放學 (done)：暗灰底 + 刪除線 */
-
+/* 狀態底色樣式 */
 .status-waiting {
   background: #f1f5f9;
   color: var(--grade-color);
