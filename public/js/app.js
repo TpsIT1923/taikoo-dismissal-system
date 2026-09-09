@@ -23,7 +23,6 @@ const ALL_CLASSES = [
   "6A", "6B", "6C", "6D", "6E"
 ];
 
-// 預設範本（當資料庫未有自訂時使用）
 const DEFAULT_PRESETS = [
   "暴雨警告生效，所有班別延遲放學。",
   "請家長到地下禮堂集合等候。",
@@ -34,6 +33,8 @@ const DISMISSAL_DOC_REF = doc(db, "dismissal_system", "live_status");
 const THREE_MINUTES_MS = 3 * 60 * 1000;
 
 let currentFirestoreData = {};
+let currentView = 'display'; // 記錄目前處於哪個頁面 (display / control)
+let isModalClosedByUser = false; // 紀錄使用者是否手動按了 ✕ 關閉
 
 function getGradeClass(className) {
   return `p${className.charAt(0)}`;
@@ -71,10 +72,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnClearNotice')?.addEventListener('click', clearNotice);
   document.getElementById('btnManagePresets')?.addEventListener('click', managePresets);
 
+  // 關閉 Pop-up 按鈕事件
+  document.getElementById('btnCloseNoticeModal')?.addEventListener('click', () => {
+    isModalClosedByUser = true;
+    const modal = document.getElementById('noticeModal');
+    if (modal) modal.classList.remove('active');
+  });
+
   setInterval(checkAndExpireClasses, 1000);
 });
 
 function switchView(viewName) {
+  currentView = viewName;
   const displayView = document.getElementById('displayView');
   const controlView = document.getElementById('controlView');
   const btnShowDisplay = document.getElementById('btnShowDisplay');
@@ -92,6 +101,9 @@ function switchView(viewName) {
     controlView.classList.add('active');
     btnShowControl.classList.add('active');
   }
+
+  // 切換頁面時重新判斷是否要顯示 Pop-up
+  renderNoticeOverlay(currentFirestoreData);
 }
 
 function checkAndExpireClasses() {
@@ -119,7 +131,14 @@ function checkAndExpireClasses() {
 function initRealtimeListener() {
   onSnapshot(DISMISSAL_DOC_REF, (docSnap) => {
     showLoading(false);
-    currentFirestoreData = docSnap.exists() ? docSnap.data() : {};
+    const newData = docSnap.exists() ? docSnap.data() : {};
+
+    // 如果後台通告有改變，重置手動關閉標記，讓新通告能再次跳出
+    if (newData._announcement !== currentFirestoreData._announcement) {
+      isModalClosedByUser = false;
+    }
+
+    currentFirestoreData = newData;
     
     checkAndExpireClasses();
 
@@ -134,12 +153,16 @@ function initRealtimeListener() {
   });
 }
 
+// 核心修正：只喺大螢幕 (currentView === 'display') 顯示 Pop-up
 function renderNoticeOverlay(data) {
   const modal = document.getElementById('noticeModal');
   const modalBody = document.getElementById('noticeModalBody');
   if (!modal || !modalBody) return;
 
-  if (data._announcement && data._announcement.trim() !== '') {
+  const hasNotice = data._announcement && data._announcement.trim() !== '';
+
+  // 條件：必須有通告內容 + 處於放學狀態大螢幕頁面 + 使用者沒有手動按下 ✕ 關閉
+  if (hasNotice && currentView === 'display' && !isModalClosedByUser) {
     modalBody.textContent = data._announcement;
     modal.classList.add('active');
   } else {
@@ -210,7 +233,6 @@ function renderControlView(data) {
     noticeInput.value = data._announcement || '';
   }
 
-  // 渲染動態快捷按鈕
   renderPresetButtons(data._custom_presets || DEFAULT_PRESETS);
 }
 
@@ -222,7 +244,6 @@ function renderPresetButtons(presets) {
   presets.forEach(msg => {
     const btn = document.createElement('button');
     btn.className = 'btn-preset';
-    // 取前8個字作按鈕標題，避免太長
     btn.textContent = msg.length > 8 ? msg.substring(0, 8) + '...' : msg;
     btn.title = msg;
     btn.addEventListener('click', () => {
@@ -233,7 +254,6 @@ function renderPresetButtons(presets) {
   });
 }
 
-// ⚙️ 管理快捷範本彈窗
 async function managePresets() {
   if (typeof Swal === 'undefined') return;
 

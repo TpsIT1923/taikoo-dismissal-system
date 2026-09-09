@@ -9,30 +9,36 @@
 </head>
 <body>
 
+  <!-- 全局 Loading 覆蓋層 -->
   <div id="loadingOverlay" class="loading-overlay">
     <div class="spinner"></div>
     <p>系統連線中，請稍候...</p>
   </div>
 
+  <!-- 大螢幕即時通告 Pop-up 覆蓋層（新增右上角 ✕ 關閉按鈕） -->
   <div id="noticeModal" class="notice-modal-overlay">
     <div class="notice-modal-card">
+      <button id="btnCloseNoticeModal" class="modal-close-btn" title="關閉">✕</button>
       <div class="notice-modal-header">📢 重要通告</div>
       <div id="noticeModalBody" class="notice-modal-body">--</div>
     </div>
   </div>
 
   <div class="app-container">
+    <!-- 頁首 Header -->
     <header style="display: flex; align-items: center; gap: 10px; padding: 4px 0; position: relative; height: 45px; flex-shrink: 0;">
       <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(0,0,0,0.1); flex-shrink: 0;">
       <span style="font-size: 20px; font-weight: bold; white-space: nowrap;">太古小學</span>
       <div id="liveClock" class="header-clock">--:--:--</div>
     </header>
 
+    <!-- 視圖切換導航 -->
     <nav class="view-toggle">
       <button id="btnShowDisplay" class="nav-btn active">放學狀態</button>
       <button id="btnShowControl" class="nav-btn">📱 地下控制台</button>
     </nav>
 
+    <!-- 視圖 1：放學狀態大螢幕 -->
     <main id="displayView" class="view-section active">
       <div class="card active-dismissal-card">
         <div class="card-title">正在放學班別</div>
@@ -44,11 +50,14 @@
       <div class="card status-overview-card">
         <div class="card-title">全校各班放學狀態</div>
         <div id="displayClassGrid" class="class-grid-large">
-          </div>
+          <!-- 30 班狀態列表 -->
+        </div>
       </div>
     </main>
 
+    <!-- 視圖 2：地下控制台 -->
     <main id="controlView" class="view-section">
+      <!-- 家長通告發佈區 -->
       <div class="card notice-control-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
           <div class="card-title" style="text-align: left; font-size: 15px; margin: 0;">📢 發佈家長即時通告 (大螢幕 Pop-up)</div>
@@ -64,7 +73,8 @@
         <div class="quick-preset-group">
           <span class="preset-label">快捷範本：</span>
           <div id="presetButtonsContainer" class="preset-buttons-container">
-            </div>
+            <!-- 動態生成快捷按鈕 -->
+          </div>
         </div>
       </div>
 
@@ -75,10 +85,12 @@
         </div>
         <p class="subtitle">點擊班別開啟「正在放學」（3分鐘後自動歸類為已放學）</p>
         <div id="controlClassGrid" class="class-grid-interactive">
-          </div>
+          <!-- 互動按鈕網格 -->
+        </div>
       </div>
     </main>
 
+    <!-- 版權 Footer -->
     <footer style="text-align: center; padding: 4px 0; font-size: 11px; color: #666; flex-shrink: 0;">
       由太古小學開發 版權歸太古小學所有
     </footer>
