@@ -16,13 +16,11 @@
   </div>
 
   <div class="app-container">
-    <!-- 強制頁首 Header + 右上角即時時鐘 -->
-    <header class="app-header">
-      <div class="header-brand">
-        <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" class="school-logo">
-        <span class="system-title">太古小學放學指示系統</span>
-      </div>
-      <div id="liveClock" class="live-clock">--:--:--</div>
+    <!-- 強制頁首 Header (嚴格遵從守則 [3] inline style + 右上角絕對定位時鐘) -->
+    <header style="display: flex; align-items: center; gap: 12px; padding: 10px 0; margin-bottom: 10px; position: relative; min-height: 55px;">
+      <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(0,0,0,0.1); flex-shrink: 0;">
+      <span style="font-size: 20px; font-weight: bold; white-space: nowrap;">太古小學放學指示系統</span>
+      <div id="liveClock" class="header-clock">--:--:--</div>
     </header>
 
     <!-- 視圖切換導航 -->
@@ -62,8 +60,8 @@
       </div>
     </main>
 
-    <!-- 版權 Footer -->
-    <footer class="app-footer">
+    <!-- 版權 Footer (嚴格遵從守則 [3]) -->
+    <footer style="text-align: center; margin-top: 15px; padding: 5px; font-size: 12px; color: #666;">
       由太古小學開發 版權歸太古小學所有
     </footer>
   </div>

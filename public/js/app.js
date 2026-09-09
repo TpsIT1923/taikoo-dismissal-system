@@ -35,8 +35,8 @@ function showLoading(show) {
   if (overlay) overlay.style.display = show ? 'flex' : 'none';
 }
 
-// 右上角即時電子時鐘
-function startLiveClock() {
+// 右上角即時電子時鐘 (包含日期 + 時間 + 秒數)
+function initLiveClock() {
   const clockEl = document.getElementById('liveClock');
   if (!clockEl) return;
 
@@ -52,8 +52,10 @@ function startLiveClock() {
   setInterval(updateClock, 1000);
 }
 
+// 立即啟動時鐘
+initLiveClock();
+
 document.addEventListener('DOMContentLoaded', () => {
-  startLiveClock();
   document.getElementById('btnShowDisplay')?.addEventListener('click', () => switchView('display'));
   document.getElementById('btnShowControl')?.addEventListener('click', () => switchView('control'));
   document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
@@ -129,17 +131,18 @@ function renderDisplayView(data) {
     gridContainer.appendChild(item);
   });
 
-  // Slide Show 邏輯：不論 1 班定多班，均採用滾動動畫呈現
+  // Slide Show 邏輯：就算得 1 班都強制做動畫循環
   if (activeClasses.length === 0) {
     activeWrapper.innerHTML = `<span class="placeholder-text">現時沒有班別放學中</span>`;
   } else {
-    // 複製多份確保動態循環不中斷
-    let repeatTimes = activeClasses.length < 3 ? 6 : 2;
+    // 當班別少過 4 班時，自動複製倍數內容，確保 Slide 滑動順暢無縫
+    let repeatCount = activeClasses.length < 4 ? 6 : 2;
     let listHTML = '';
     
-    for (let i = 0; i < repeatTimes; i++) {
+    for (let i = 0; i < repeatCount; i++) {
       activeClasses.forEach(cls => {
-        listHTML += `<span class="badge-item ${getGradeClass(cls)}" style="background-color: var(--${getGradeClass(cls)}-color);">${cls}</span>`;
+        const gradeClass = getGradeClass(cls);
+        listHTML += `<span class="badge-item ${gradeClass}" style="background-color: var(--${gradeClass}-color);">${cls}</span>`;
       });
     }
 

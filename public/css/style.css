@@ -20,62 +20,33 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-html, body {
-  background: var(--bg-color);
-  height: 100vh;
-  overflow: hidden; /* 防止滾動條，達成一畫面睇晒 30 班 */
-  color: var(--text-main);
-}
-
 body {
+  background: var(--bg-color);
+  min-height: 100vh;
+  color: var(--text-main);
   padding: 10px 20px;
 }
 
 .app-container {
-  max-width: 1600px;
-  height: 100vh;
+  max-width: 1400px;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
 }
 
-/* 頁首 Header & 即時時鐘 */
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 0;
-  margin-bottom: 10px;
-}
-
-.header-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.school-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(0,0,0,0.1);
-}
-
-.system-title {
+/* 右上角固定電子時鐘 */
+.header-clock {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 20px;
   font-weight: bold;
-}
-
-.live-clock {
-  font-size: 22px;
-  font-weight: 800;
   font-family: 'Courier New', Courier, monospace;
   color: #00418D;
   background: #f1f5f9;
-  padding: 6px 16px;
-  border-radius: 10px;
+  padding: 6px 14px;
+  border-radius: 8px;
   border: 1px solid var(--card-border);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 /* Loading 覆蓋層 */
@@ -108,12 +79,12 @@ body {
 .view-toggle {
   display: flex;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .nav-btn {
   flex: 1;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid var(--card-border);
   border-radius: 10px;
   background: #f1f5f9;
@@ -131,13 +102,10 @@ body {
 
 .view-section {
   display: none;
-  flex: 1;
 }
 
 .view-section.active {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: block;
 }
 
 /* 卡片容器通用樣式 */
@@ -146,6 +114,7 @@ body {
   border: 1.5px solid var(--card-border);
   border-radius: 14px;
   padding: 12px 16px;
+  margin-bottom: 12px;
 }
 
 .card-title {
@@ -159,11 +128,10 @@ body {
 /* 正在放學區域 (Slide Show) */
 .active-dismissal-card {
   background: #ffffff;
-  min-height: 100px;
 }
 
 .active-wrapper {
-  height: 60px;
+  min-height: 70px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,13 +145,12 @@ body {
   color: #94a3b8;
 }
 
-/* 強制 Slide Show 跑馬燈軌道 */
+/* 無縫 Slide Show 跑馬燈軌道 */
 .marquee-track {
   display: flex;
-  gap: 30px;
+  gap: 20px;
   white-space: nowrap;
   animation: marqueeSlide 8s linear infinite;
-  will-change: transform;
 }
 
 @keyframes marqueeSlide {
@@ -192,41 +159,34 @@ body {
 }
 
 .badge-item {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 900;
-  padding: 4px 28px;
+  padding: 4px 24px;
   border-radius: 12px;
   color: #ffffff;
   box-shadow: 0 4px 10px rgba(0,0,0,0.12);
   display: inline-block;
 }
 
-/* 全校狀態網格 (一畫面睇晒 30 班) */
-.status-overview-card {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
+/* 全校狀態網格 */
 .class-grid-large {
-  flex: 1;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(6, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .status-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
-  border-radius: 10px;
+  border-radius: 12px;
+  padding: 16px 0;
   transition: all 0.2s ease;
 }
 
-/* 級數顏色指定 */
+/* 級數顏色指定 (供 JS 或跑馬燈讀取) */
 .p1 { --grade-color: var(--p1-color); }
 .p2 { --grade-color: var(--p2-color); }
 .p3 { --grade-color: var(--p3-color); }
@@ -234,15 +194,17 @@ body {
 .p5 { --grade-color: var(--p5-color); }
 .p6 { --grade-color: var(--p6-color); }
 
-/* 狀態底色切換 */
-/* 未放學：全灰色背景，字體為年級顏色或灰色 */
+/* 狀態底色切換：
+   1. 未放學 (waiting)：全灰色背景 + 該年級色字體
+   2. 正在放學 (active)：該年級專屬 Color Code 背景 + 白字 + 閃爍
+   3. 已放學 (done)：深灰底 + 刪除線 */
+
 .status-waiting {
-  background: #edf2f7;
-  color: #4a5568;
-  border: 1px solid #cbd5e0;
+  background: #f1f5f9;
+  color: var(--grade-color);
+  border: 2px solid #e2e8f0;
 }
 
-/* 正在放學：年級 Color Code 背景 + 閃爍效果 */
 .status-active {
   background: var(--grade-color);
   color: #ffffff;
@@ -250,7 +212,6 @@ body {
   animation: activePulse 1.2s infinite;
 }
 
-/* 已放學：暗灰底 + 刪除線 */
 .status-done {
   background: #e2e8f0;
   color: #a0aec0;
@@ -280,17 +241,15 @@ body {
 .class-grid-interactive {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(6, 1fr);
-  gap: 8px;
-  height: 60vh;
+  gap: 10px;
 }
 
 .control-btn {
   font-size: 20px;
   font-weight: bold;
+  padding: 12px 0;
   border-radius: 10px;
   cursor: pointer;
-  border: none;
 }
 
 .btn-reset {
@@ -301,11 +260,4 @@ body {
   border-radius: 8px;
   font-weight: bold;
   cursor: pointer;
-}
-
-.app-footer {
-  text-align: center;
-  padding: 6px 0;
-  font-size: 12px;
-  color: #94a3b8;
 }
