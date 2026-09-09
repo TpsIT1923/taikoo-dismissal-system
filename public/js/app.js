@@ -24,7 +24,9 @@ const ALL_CLASSES = [
 ];
 
 const DISMISSAL_DOC_REF = doc(db, "dismissal_system", "live_status");
-const THREE_MINUTES_MS = 3 * 60 * 1000;
+const THREE_MINUTES_MS = 3 * 60 * 1000; // 3分鐘 = 180,000 毫秒
+
+let currentFirestoreData = {}; // 快存最新資料
 
 function getGradeClass(className) {
   return `p${className.charAt(0)}`;
@@ -52,13 +54,15 @@ function initLiveClock() {
   setInterval(updateClock, 1000);
 }
 
-// 立即執行時鐘初始化
 initLiveClock();
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnShowDisplay')?.addEventListener('click', () => switchView('display'));
   document.getElementById('btnShowControl')?.addEventListener('click', () => switchView('control'));
   document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
+
+  // 核心改進：每秒背景檢查「是否已滿 3 分鐘」，自動將 active 轉為 done
+  setInterval(checkAndExpireClasses, 1000);
 });
 
 function switchView(viewName) {
@@ -81,28 +85,41 @@ function switchView(viewName) {
   }
 }
 
+// 每秒自動檢查過期班別（滿3分鐘）
+function checkAndExpireClasses() {
+  if (!currentFirestoreData) return;
+  const now = Date.now();
+  let needUpdateDb = false;
+
+  ALL_CLASSES.forEach(cls => {
+    const clsInfo = currentFirestoreData[cls];
+    if (clsInfo && clsInfo.status === 'active') {
+      // 檢查是否超過 3 分鐘
+      if (now - clsInfo.timestamp >= THREE_MINUTES_MS) {
+        clsInfo.status = 'done';
+        needUpdateDb = true;
+      }
+    }
+  });
+
+  // 如果有班別過期，立即寫入 Firebase 資料庫並刷新畫面
+  if (needUpdateDb) {
+    updateDoc(DISMISSAL_DOC_REF, currentFirestoreData);
+    renderDisplayView(currentFirestoreData);
+    renderControlView(currentFirestoreData);
+  }
+}
+
 function initRealtimeListener() {
   onSnapshot(DISMISSAL_DOC_REF, (docSnap) => {
     showLoading(false);
-    let data = docSnap.exists() ? docSnap.data() : {};
-    const now = Date.now();
-    let hasUpdates = false;
+    currentFirestoreData = docSnap.exists() ? docSnap.data() : {};
+    
+    // 立即做一次過期檢查
+    checkAndExpireClasses();
 
-    ALL_CLASSES.forEach(cls => {
-      if (data[cls] && data[cls].status === 'active') {
-        if (now - data[cls].timestamp >= THREE_MINUTES_MS) {
-          data[cls].status = 'done';
-          hasUpdates = true;
-        }
-      }
-    });
-
-    if (hasUpdates) {
-      updateDoc(DISMISSAL_DOC_REF, data);
-    }
-
-    renderDisplayView(data);
-    renderControlView(data);
+    renderDisplayView(currentFirestoreData);
+    renderControlView(currentFirestoreData);
   }, (error) => {
     showLoading(false);
     if (typeof Swal !== 'undefined') {
@@ -131,23 +148,25 @@ function renderDisplayView(data) {
     gridContainer.appendChild(item);
   });
 
-  // Slide Show 邏輯：複製雙倍內容達成無縫 Seamless Loop，解決切字問題
+  // 渲染正在放學班別區域 (Slide Show / Static Header)
   if (activeClasses.length === 0) {
     activeWrapper.innerHTML = `<span class="placeholder-text">現時沒有班別放學中</span>`;
-  } else {
-    // 確保有足夠的卡片組成橫向無縫滾動
-    let repeatedList = [...activeClasses];
-    while (repeatedList.length < 8) {
-      repeatedList = repeatedList.concat(activeClasses);
-    }
-
-    // 產生兩組一模一樣的 HTML 軌道以供無縫動態位移
-    const generateBadges = (arr) => arr.map(cls => {
+  } else if (activeClasses.length <= 5) {
+    // 數量較少時：靜態排列，絕不重複複製！
+    const badgesHTML = activeClasses.map(cls => {
       const gradeClass = getGradeClass(cls);
-      return `<span class="badge-item ${gradeClass}" style="background-color: var(--${gradeClass}-color);">${cls}</span>`;
+      return `<span class="badge-item ${gradeClass}">${cls}</span>`;
     }).join('');
 
-    const trackHTML = generateBadges(repeatedList);
+    activeWrapper.innerHTML = `<div class="static-badge-container">${badgesHTML}</div>`;
+  } else {
+    // 班別多於 5 班時：啟動滾動跑馬燈
+    const generateBadges = (arr) => arr.map(cls => {
+      const gradeClass = getGradeClass(cls);
+      return `<span class="badge-item ${gradeClass}">${cls}</span>`;
+    }).join('');
+
+    const trackHTML = generateBadges(activeClasses);
 
     activeWrapper.innerHTML = `
       <div class="marquee-track">
