@@ -38,7 +38,7 @@ let currentView = 'display';
 let isModalClosedByUser = false;
 let isAudioEnabled = false;
 
-// 語音廣播對列
+// 語音廣播佇列
 let speechQueue = [];
 let isSpeaking = false;
 
@@ -91,7 +91,7 @@ function initAudioSystem() {
   });
 }
 
-// 播放叮噹提示音 (使用 Web Audio API 生成純正叮噹聲)
+// 播放叮噹提示音
 function playDingDong() {
   if (!isAudioEnabled) return;
   try {
@@ -143,7 +143,7 @@ function processSpeechQueue() {
   const utterance = new SpeechSynthesisUtterance(textToSpeak);
   
   utterance.lang = 'zh-HK'; // 廣東話
-  utterance.rate = 0.9;     // 稍微放慢語速，讓大螢幕廣播更清楚
+  utterance.rate = 0.88;    // 保持清晰自然語速
 
   utterance.onend = () => {
     isSpeaking = false;
@@ -200,6 +200,7 @@ function switchView(viewName) {
   renderNoticeOverlay(currentFirestoreData);
 }
 
+// 3分鐘自動過期檢查：只負責將 active 轉為 done（讓 Slide Show 移除）
 function checkAndExpireClasses() {
   if (!currentFirestoreData) return;
   const now = Date.now();
@@ -228,7 +229,6 @@ function checkDailyAutoReset(data) {
   const lastResetDate = data._lastResetDate || "";
 
   if (lastResetDate !== todayStr) {
-    // 發現是新的一天，自動進行重置
     const resetData = {};
     ALL_CLASSES.forEach(cls => {
       resetData[cls] = { status: 'waiting', timestamp: 0 };
@@ -249,22 +249,20 @@ function initRealtimeListener() {
     showLoading(false);
     const newData = docSnap.exists() ? docSnap.data() : {};
 
-    // 1. 檢查是否需要每日自動 Reset
     if (checkDailyAutoReset(newData)) return;
 
-    // 2. 檢測是否有新班別開始放學，觸發語音廣播
     ALL_CLASSES.forEach(cls => {
       const oldStatus = previousFirestoreData[cls]?.status;
       const newStatus = newData[cls]?.status;
 
       if (oldStatus !== 'active' && newStatus === 'active') {
-        const gradeLetter = cls.charAt(1);
         const gradeNum = cls.charAt(0);
-        speakCantonese(`請 ${gradeNum} ${gradeLetter} 班家長準備，你嘅小朋友放學啦！`);
+        const gradeLetter = cls.charAt(1);
+        
+        speakCantonese(`請 ${gradeNum} 班， ${gradeLetter} 班家長準備，你嘅小朋友放學啦！`);
       }
     });
 
-    // 3. 檢測是否有新重要通告，觸發叮噹聲與語音
     if (newData._announcement && newData._announcement !== previousFirestoreData._announcement) {
       isModalClosedByUser = false;
       playDingDong();
@@ -304,6 +302,7 @@ function renderNoticeOverlay(data) {
   }
 }
 
+// 🎯 核心渲染修正處
 function renderDisplayView(data) {
   const activeWrapper = document.getElementById('activeClassesWrapper');
   const gridContainer = document.getElementById('displayClassGrid');
@@ -313,17 +312,25 @@ function renderDisplayView(data) {
 
   ALL_CLASSES.forEach(cls => {
     const clsInfo = data[cls] || { status: 'waiting' };
+    
+    // 1. Slide Show (正在放學班別)：只收集 3分鐘內的班別 (status === 'active')
     if (clsInfo.status === 'active') {
       activeClasses.push(cls);
     }
 
+    // 2. 全校各班放學狀態：只要觸發過 (status === 'active' 或 'done')，都一律顯示為亮起 (status-active)！
+    const displayStatusClass = (clsInfo.status === 'active' || clsInfo.status === 'done') 
+      ? 'status-active' 
+      : 'status-waiting';
+
     const item = document.createElement('div');
     const gradeClass = getGradeClass(cls);
-    item.className = `status-box ${gradeClass} status-${clsInfo.status}`;
+    item.className = `status-box ${gradeClass} ${displayStatusClass}`;
     item.textContent = cls;
     gridContainer.appendChild(item);
   });
 
+  // 渲染 Slide Show
   if (activeClasses.length === 0) {
     activeWrapper.innerHTML = `<span class="placeholder-text">現時沒有班別放學中</span>`;
   } else if (activeClasses.length <= 5) {
@@ -355,7 +362,13 @@ function renderControlView(data) {
     const clsInfo = data[cls] || { status: 'waiting' };
     const btn = document.createElement('button');
     const gradeClass = getGradeClass(cls);
-    btn.className = `control-btn ${gradeClass} status-${clsInfo.status}`;
+    
+    // 控制台按鈕也保持亮起狀態
+    const displayStatusClass = (clsInfo.status === 'active' || clsInfo.status === 'done') 
+      ? 'status-active' 
+      : 'status-waiting';
+
+    btn.className = `control-btn ${gradeClass} ${displayStatusClass}`;
     btn.textContent = cls;
 
     btn.addEventListener('click', () => triggerClassDismissal(cls));
