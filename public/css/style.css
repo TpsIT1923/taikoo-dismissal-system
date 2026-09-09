@@ -4,7 +4,7 @@
   --card-border: #e2e8f0;
   --text-main: #1a202c;
   
-  /* 各級專屬色彩定義 */
+  /* 各級專屬 Color Code */
   --p1-color: #F43545;
   --p2-color: #FF8901;
   --p3-color: #FAD717;
@@ -20,19 +20,65 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-body {
+html, body {
   background: var(--bg-color);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden; /* 防止滾動條，達成一畫面睇晒 30 班 */
   color: var(--text-main);
-  padding: 20px;
+}
+
+body {
+  padding: 10px 20px;
 }
 
 .app-container {
-  max-width: 1400px;
+  max-width: 1600px;
+  height: 100vh;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
-/* 全局 Loading */
+/* 頁首 Header & 即時時鐘 */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  margin-bottom: 10px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.school-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(0,0,0,0.1);
+}
+
+.system-title {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.live-clock {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: 'Courier New', Courier, monospace;
+  color: #00418D;
+  background: #f1f5f9;
+  padding: 6px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+}
+
+/* Loading 覆蓋層 */
 .loading-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
@@ -45,12 +91,12 @@ body {
 }
 
 .spinner {
-  width: 48px; height: 48px;
-  border: 5px solid #e2e8f0;
-  border-top: 5px solid #00418D;
+  width: 40px; height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #00418D;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 @keyframes spin {
@@ -58,30 +104,22 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* 卡片與導航 */
-.card {
-  background: var(--card-bg);
-  border: 2px solid var(--card-border);
-  border-radius: 20px;
-  padding: 24px;
-  margin-bottom: 20px;
-}
-
+/* 視圖切換按鈕 */
 .view-toggle {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .nav-btn {
   flex: 1;
-  padding: 14px;
-  border: 2px solid var(--card-border);
-  border-radius: 14px;
+  padding: 8px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
   background: #f1f5f9;
   color: #475569;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
 }
 
@@ -91,94 +129,104 @@ body {
   border-color: #00418D;
 }
 
-.view-section { display: none; }
-.view-section.active { display: block; }
-
-/* 正在放學區域 */
-.active-dismissal-card {
-  text-align: center;
-  background: #ffffff;
+.view-section {
+  display: none;
+  flex: 1;
 }
 
-.active-dismissal-card h2 {
-  font-size: 24px;
-  margin-bottom: 16px;
+.view-section.active {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 卡片容器通用樣式 */
+.card {
+  background: var(--card-bg);
+  border: 1.5px solid var(--card-border);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: bold;
   color: #00418D;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+/* 正在放學區域 (Slide Show) */
+.active-dismissal-card {
+  background: #ffffff;
+  min-height: 100px;
 }
 
 .active-wrapper {
-  min-height: 90px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   position: relative;
+  width: 100%;
 }
 
-/* 單一班別：超大專屬彩色顯示 */
-.single-active-badge {
-  font-size: 56px;
-  font-weight: 900;
-  padding: 10px 40px;
-  border-radius: 20px;
-  color: #ffffff;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-  animation: pulse 1.5s infinite;
+.placeholder-text {
+  font-size: 18px;
+  color: #94a3b8;
 }
 
-/* 多班別流暢跑馬燈 */
+/* 強制 Slide Show 跑馬燈軌道 */
 .marquee-track {
   display: flex;
-  gap: 20px;
+  gap: 30px;
   white-space: nowrap;
-  animation: marquee 12s linear infinite;
+  animation: marqueeSlide 8s linear infinite;
+  will-change: transform;
 }
 
-@keyframes marquee {
-  0% { transform: translateX(0); }
+@keyframes marqueeSlide {
+  0% { transform: translateX(0%); }
   100% { transform: translateX(-50%); }
 }
 
 .badge-item {
-  font-size: 42px;
-  font-weight: 800;
-  padding: 8px 30px;
-  border-radius: 16px;
+  font-size: 36px;
+  font-weight: 900;
+  padding: 4px 28px;
+  border-radius: 12px;
   color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  display: inline-block;
 }
 
-.placeholder-text {
-  font-size: 20px;
-  color: #94a3b8;
-}
-
-/* 全校狀態網格 (佔螢幕大面積視圖) */
-.status-overview-card h2 {
-  font-size: 26px;
-  margin-bottom: 20px;
-  color: #00418D;
+/* 全校狀態網格 (一畫面睇晒 30 班) */
+.status-overview-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .class-grid-large {
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-  min-height: 50vh; /* 佔據螢幕主要比例 */
+  grid-template-rows: repeat(6, 1fr);
+  gap: 8px;
 }
 
 .status-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
-  font-weight: bold;
-  border-radius: 16px;
-  padding: 24px 10px;
-  border: 3px solid transparent;
-  transition: all 0.3s ease;
+  font-size: 24px;
+  font-weight: 800;
+  border-radius: 10px;
+  transition: all 0.2s ease;
 }
 
-/* 狀態樣式：各級套用專屬色 */
+/* 級數顏色指定 */
 .p1 { --grade-color: var(--p1-color); }
 .p2 { --grade-color: var(--p2-color); }
 .p3 { --grade-color: var(--p3-color); }
@@ -186,56 +234,78 @@ body {
 .p5 { --grade-color: var(--p5-color); }
 .p6 { --grade-color: var(--p6-color); }
 
-/* 等候中：空心級數顏色邊框 */
+/* 狀態底色切換 */
+/* 未放學：全灰色背景，字體為年級顏色或灰色 */
 .status-waiting {
-  background: #ffffff;
-  color: var(--grade-color);
-  border-color: var(--grade-color);
+  background: #edf2f7;
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
 }
 
-/* 正在放學：填滿級數顏色並閃爍 */
+/* 正在放學：年級 Color Code 背景 + 閃爍效果 */
 .status-active {
   background: var(--grade-color);
   color: #ffffff;
-  animation: pulse 1.5s infinite;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  animation: activePulse 1.2s infinite;
 }
 
-/* 已放學：灰底刪除線 */
+/* 已放學：暗灰底 + 刪除線 */
 .status-done {
   background: #e2e8f0;
-  color: #94a3b8;
-  border-color: #cbd5e1;
+  color: #a0aec0;
   text-decoration: line-through;
+  border: 1px dashed #cbd5e1;
 }
 
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.03); }
-  100% { transform: scale(1); }
+@keyframes activePulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.88; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-/* 控制台樣式 */
+/* 控制台網格 */
+.control-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
 .class-grid-interactive {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  grid-template-rows: repeat(6, 1fr);
+  gap: 8px;
+  height: 60vh;
 }
 
 .control-btn {
-  padding: 16px 8px;
   font-size: 20px;
   font-weight: bold;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
-  border: 2px solid var(--grade-color);
+  border: none;
 }
 
 .btn-reset {
   background: #ef4444;
   color: white;
   border: none;
-  padding: 10px 18px;
-  border-radius: 10px;
+  padding: 6px 14px;
+  border-radius: 8px;
   font-weight: bold;
   cursor: pointer;
+}
+
+.app-footer {
+  text-align: center;
+  padding: 6px 0;
+  font-size: 12px;
+  color: #94a3b8;
 }

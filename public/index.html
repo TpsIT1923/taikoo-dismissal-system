@@ -16,10 +16,13 @@
   </div>
 
   <div class="app-container">
-    <!-- 強制頁首 Header -->
-    <header style="display: flex; align-items: center; gap: 12px; padding: 10px 0; margin-bottom: 20px;">
-      <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(0,0,0,0.1);">
-      <span style="font-size: 22px; font-weight: bold;">太古小學放學指示系統</span>
+    <!-- 強制頁首 Header + 右上角即時時鐘 -->
+    <header class="app-header">
+      <div class="header-brand">
+        <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" class="school-logo">
+        <span class="system-title">太古小學放學指示系統</span>
+      </div>
+      <div id="liveClock" class="live-clock">--:--:--</div>
     </header>
 
     <!-- 視圖切換導航 -->
@@ -30,19 +33,17 @@
 
     <!-- 視圖 1：大螢幕展示屏 -->
     <main id="displayView" class="view-section active">
-      <!-- 正在放學班別卡片 -->
       <div class="card active-dismissal-card">
-        <h2>正在放學班別</h2>
+        <div class="card-title">正在放學班別</div>
         <div id="activeClassesWrapper" class="active-wrapper">
           <span class="placeholder-text">現時沒有班別放學中</span>
         </div>
       </div>
 
-      <!-- 全校各班放學狀態（放大佔據主要視圖 80%） -->
       <div class="card status-overview-card">
-        <h2>全校各班放學狀態</h2>
+        <div class="card-title">全校各班放學狀態</div>
         <div id="displayClassGrid" class="class-grid-large">
-          <!-- 班別狀態列表 -->
+          <!-- 30 班狀態列表 -->
         </div>
       </div>
     </main>
@@ -51,7 +52,7 @@
     <main id="controlView" class="view-section">
       <div class="card control-panel">
         <div class="control-header">
-          <h2>放學控制台</h2>
+          <div class="card-title">放學控制台</div>
           <button id="btnResetAll" class="btn-reset">🔄 重置所有班別</button>
         </div>
         <p class="subtitle">點擊班別開啟「正在放學」（3分鐘後自動歸類為已放學）</p>
@@ -62,7 +63,7 @@
     </main>
 
     <!-- 版權 Footer -->
-    <footer style="text-align: center; margin-top: 30px; padding: 10px; font-size: 12px; color: #666;">
+    <footer class="app-footer">
       由太古小學開發 版權歸太古小學所有
     </footer>
   </div>

@@ -27,8 +27,7 @@ const DISMISSAL_DOC_REF = doc(db, "dismissal_system", "live_status");
 const THREE_MINUTES_MS = 3 * 60 * 1000;
 
 function getGradeClass(className) {
-  const grade = className.charAt(0);
-  return `p${grade}`;
+  return `p${className.charAt(0)}`;
 }
 
 function showLoading(show) {
@@ -36,7 +35,25 @@ function showLoading(show) {
   if (overlay) overlay.style.display = show ? 'flex' : 'none';
 }
 
+// 右上角即時電子時鐘
+function startLiveClock() {
+  const clockEl = document.getElementById('liveClock');
+  if (!clockEl) return;
+
+  function updateClock() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    clockEl.textContent = `${hours}:${minutes}:${seconds}`;
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  startLiveClock();
   document.getElementById('btnShowDisplay')?.addEventListener('click', () => switchView('display'));
   document.getElementById('btnShowControl')?.addEventListener('click', () => switchView('control'));
   document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
@@ -112,21 +129,23 @@ function renderDisplayView(data) {
     gridContainer.appendChild(item);
   });
 
-  // 流暢 Slide Show 邏輯判斷
+  // Slide Show 邏輯：不論 1 班定多班，均採用滾動動畫呈現
   if (activeClasses.length === 0) {
     activeWrapper.innerHTML = `<span class="placeholder-text">現時沒有班別放學中</span>`;
-  } else if (activeClasses.length === 1) {
-    // 只有 1 班：置中放大顯示
-    const cls = activeClasses[0];
-    const gradeClass = getGradeClass(cls);
-    activeWrapper.innerHTML = `<div class="single-active-badge ${gradeClass}">${cls}</div>`;
   } else {
-    // 2 班或以上：無縫雙重跑馬燈
-    const itemsHTML = activeClasses.map(cls => `<span class="badge-item ${getGradeClass(cls)}">${cls}</span>`).join('');
+    // 複製多份確保動態循環不中斷
+    let repeatTimes = activeClasses.length < 3 ? 6 : 2;
+    let listHTML = '';
+    
+    for (let i = 0; i < repeatTimes; i++) {
+      activeClasses.forEach(cls => {
+        listHTML += `<span class="badge-item ${getGradeClass(cls)}" style="background-color: var(--${getGradeClass(cls)}-color);">${cls}</span>`;
+      });
+    }
+
     activeWrapper.innerHTML = `
       <div class="marquee-track">
-        ${itemsHTML}
-        ${itemsHTML}
+        ${listHTML}
       </div>
     `;
   }
