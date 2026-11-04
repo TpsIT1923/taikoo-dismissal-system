@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCYndV2aTf1KEB6yBgjjhOoUIqUKf3jsJY",
@@ -37,6 +37,8 @@ let previousFirestoreData = {};
 let currentView = 'display';
 let isModalClosedByUser = false;
 let isAudioEnabled = false;
+let hasLoadedOnce = false;
+let expireInFlight = false;
 
 // 語音廣播佇列
 let speechQueue = [];
@@ -44,6 +46,30 @@ let isSpeaking = false;
 
 function getGradeClass(className) {
   return `p${className.charAt(0)}`;
+}
+
+function getHongKongDateString(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Hong_Kong',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
+
+function getDismissalAnnouncement(className) {
+  const gradeNum = className.charAt(0);
+  const gradeLetter = className.charAt(1);
+  return `請 ${gradeNum} ${gradeLetter} 班家長準備，你嘅小朋友放學啦！`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function showLoading(show) {
@@ -87,6 +113,8 @@ function initAudioSystem() {
       btnToggleAudio.classList.remove('active');
       btnToggleAudio.classList.add('muted');
       window.speechSynthesis.cancel();
+      speechQueue = [];
+      isSpeaking = false;
     }
   });
 }
@@ -136,6 +164,11 @@ function speakCantonese(text) {
 }
 
 function processSpeechQueue() {
+  if (!isAudioEnabled) {
+    speechQueue = [];
+    isSpeaking = false;
+    return;
+  }
   if (isSpeaking || speechQueue.length === 0) return;
 
   isSpeaking = true;
@@ -200,32 +233,44 @@ function switchView(viewName) {
   renderNoticeOverlay(currentFirestoreData);
 }
 
-// 3分鐘自動過期檢查：只負責將 active 轉為 done（讓 Slide Show 移除）
-function checkAndExpireClasses() {
-  if (!currentFirestoreData) return;
+// 3分鐘自動過期：交易內只改仍然有效的過期班別，避免覆蓋控制台剛重新開啟的班
+async function checkAndExpireClasses() {
+  if (!currentFirestoreData || expireInFlight) return;
   const now = Date.now();
-  let needUpdateDb = false;
-
-  ALL_CLASSES.forEach(cls => {
+  const candidates = ALL_CLASSES.filter(cls => {
     const clsInfo = currentFirestoreData[cls];
-    if (clsInfo && clsInfo.status === 'active') {
-      if (now - clsInfo.timestamp >= THREE_MINUTES_MS) {
-        clsInfo.status = 'done';
-        needUpdateDb = true;
-      }
-    }
+    return clsInfo && clsInfo.status === 'active' && now - clsInfo.timestamp >= THREE_MINUTES_MS;
   });
+  if (candidates.length === 0) return;
 
-  if (needUpdateDb) {
-    updateDoc(DISMISSAL_DOC_REF, currentFirestoreData);
-    renderDisplayView(currentFirestoreData);
-    renderControlView(currentFirestoreData);
+  expireInFlight = true;
+  try {
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(DISMISSAL_DOC_REF);
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const updates = {};
+      const serverNow = Date.now();
+      candidates.forEach(cls => {
+        const clsInfo = data[cls];
+        if (clsInfo && clsInfo.status === 'active' && serverNow - clsInfo.timestamp >= THREE_MINUTES_MS) {
+          updates[`${cls}.status`] = 'done';
+        }
+      });
+      if (Object.keys(updates).length > 0) {
+        transaction.update(DISMISSAL_DOC_REF, updates);
+      }
+    });
+  } catch (error) {
+    console.error('班別過期更新失敗', error);
+  } finally {
+    expireInFlight = false;
   }
 }
 
 // ⏰ 每日自動 Reset 檢查機制
 function checkDailyAutoReset(data) {
-  const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const todayStr = getHongKongDateString();
   const lastResetDate = data._lastResetDate || "";
 
   if (lastResetDate !== todayStr) {
@@ -252,18 +297,14 @@ function initRealtimeListener() {
     if (checkDailyAutoReset(newData)) return;
 
     ALL_CLASSES.forEach(cls => {
-      const oldStatus = previousFirestoreData[cls]?.status;
       const newStatus = newData[cls]?.status;
-
-      if (oldStatus !== 'active' && newStatus === 'active') {
-        const gradeNum = cls.charAt(0);
-        const gradeLetter = cls.charAt(1);
-        
-        speakCantonese(`請 ${gradeNum} 班， ${gradeLetter} 班家長準備，你嘅小朋友放學啦！`);
+      const oldStatus = previousFirestoreData[cls]?.status;
+      if (hasLoadedOnce && oldStatus !== 'active' && newStatus === 'active') {
+        speakCantonese(getDismissalAnnouncement(cls));
       }
     });
 
-    if (newData._announcement && newData._announcement !== previousFirestoreData._announcement) {
+    if (hasLoadedOnce && newData._announcement && newData._announcement !== previousFirestoreData._announcement) {
       isModalClosedByUser = false;
       playDingDong();
       setTimeout(() => {
@@ -273,6 +314,7 @@ function initRealtimeListener() {
 
     currentFirestoreData = newData;
     previousFirestoreData = JSON.parse(JSON.stringify(newData));
+    hasLoadedOnce = true;
 
     checkAndExpireClasses();
 
@@ -318,10 +360,10 @@ function renderDisplayView(data) {
       activeClasses.push(cls);
     }
 
-    // 2. 全校各班放學狀態：只要觸發過 (status === 'active' 或 'done')，都一律顯示為亮起 (status-active)！
-    const displayStatusClass = (clsInfo.status === 'active' || clsInfo.status === 'done') 
-      ? 'status-active' 
-      : 'status-waiting';
+    // 已放學保持亮起，但不再使用「放學中」的閃動動畫
+    let displayStatusClass = 'status-waiting';
+    if (clsInfo.status === 'active') displayStatusClass = 'status-active';
+    else if (clsInfo.status === 'done') displayStatusClass = 'status-dismissed';
 
     const item = document.createElement('div');
     const gradeClass = getGradeClass(cls);
@@ -363,12 +405,7 @@ function renderControlView(data) {
     const btn = document.createElement('button');
     const gradeClass = getGradeClass(cls);
     
-    // 控制台按鈕也保持亮起狀態
-    const displayStatusClass = (clsInfo.status === 'active' || clsInfo.status === 'done') 
-      ? 'status-active' 
-      : 'status-waiting';
-
-    btn.className = `control-btn ${gradeClass} ${displayStatusClass}`;
+    btn.className = `control-btn ${gradeClass} status-${clsInfo.status}`;
     btn.textContent = cls;
 
     btn.addEventListener('click', () => triggerClassDismissal(cls));
@@ -408,7 +445,7 @@ async function managePresets() {
   
   let listHTML = currentPresets.map((p, index) => `
     <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-      <input type="text" id="preset_input_${index}" value="${p}" class="swal2-input" style="margin: 0; flex: 1; font-size: 14px;">
+      <input type="text" id="preset_input_${index}" value="${escapeHtml(p)}" class="swal2-input" style="margin: 0; flex: 1; font-size: 14px;">
       <button class="swal2-cancel swal2-styled" onclick="document.getElementById('preset_input_${index}').parentElement.remove()" style="background:#ef4444; margin:0; padding:6px 10px;">刪除</button>
     </div>
   `).join('');
@@ -521,7 +558,7 @@ async function resetAllClasses() {
     if (result.isConfirmed) {
       showLoading(true);
       const resetData = {};
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getHongKongDateString();
       ALL_CLASSES.forEach(cls => {
         resetData[cls] = { status: 'waiting', timestamp: 0 };
       });

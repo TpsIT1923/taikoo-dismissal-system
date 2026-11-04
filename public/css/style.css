@@ -364,6 +364,12 @@ body::before {
   animation: activePulse 1.2s infinite;
 }
 
+.status-dismissed {
+  background: var(--grade-color);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
 .status-done {
   background: rgba(226, 232, 240, 0.85);
   color: #a0aec0;
