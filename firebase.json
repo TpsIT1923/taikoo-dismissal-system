@@ -1,4 +1,7 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": "public",
     "ignore": [
@@ -7,6 +10,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/control",
+        "destination": "/control.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"

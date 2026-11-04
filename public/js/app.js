@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCYndV2aTf1KEB6yBgjjhOoUIqUKf3jsJY",
@@ -13,6 +14,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+const SCHOOL_DOMAIN = "tps.edu.hk";
+const PAGE = document.body.dataset.page || "display";
+const isDisplayPage = PAGE === "display";
+const isControlPage = PAGE === "control";
+const ANNOUNCE_DELAY_MS = 5000;
 
 const ALL_CLASSES = [
   "1A", "1B", "1C", "1D", "1E",
@@ -39,10 +46,16 @@ let isModalClosedByUser = false;
 let isAudioEnabled = false;
 let hasLoadedOnce = false;
 let expireInFlight = false;
+let listenerStarted = false;
+const pendingAnnouncements = new Map();
 
 // 語音廣播佇列
 let speechQueue = [];
 let isSpeaking = false;
+
+function isSchoolUser(user) {
+  return Boolean(user && user.email && user.emailVerified && user.email.toLowerCase().endsWith(`@${SCHOOL_DOMAIN}`));
+}
 
 function getGradeClass(className) {
   return `p${className.charAt(0)}`;
@@ -96,27 +109,37 @@ function initLiveClock() {
 
 initLiveClock();
 
-// 🔊 語音與音效系統
-function initAudioSystem() {
-  const btnToggleAudio = document.getElementById('btnToggleAudio');
-  if (!btnToggleAudio) return;
+function paintAudioState() {
+  const label = document.getElementById('audioState');
+  if (!label) return;
+  label.textContent = isAudioEnabled ? "廣播已開啟" : "廣播未開啟";
+  label.classList.toggle('is-on', isAudioEnabled);
+}
 
-  btnToggleAudio.addEventListener('click', () => {
+function setupDisplayAudioShortcut() {
+  paintAudioState();
+  document.addEventListener('keydown', (event) => {
+    if (!(event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 's')) return;
+    event.preventDefault();
     isAudioEnabled = !isAudioEnabled;
     if (isAudioEnabled) {
-      btnToggleAudio.textContent = "🔊 語音廣播已開啟";
-      btnToggleAudio.classList.remove('muted');
-      btnToggleAudio.classList.add('active');
       speakCantonese("語音廣播系統已開啟");
     } else {
-      btnToggleAudio.textContent = "🔇 點擊開啟語音廣播";
-      btnToggleAudio.classList.remove('active');
-      btnToggleAudio.classList.add('muted');
-      window.speechSynthesis.cancel();
+      window.speechSynthesis?.cancel();
       speechQueue = [];
       isSpeaking = false;
     }
+    paintAudioState();
   });
+}
+
+function playTestAnnouncement() {
+  if (!('speechSynthesis' in window)) return;
+  const utterance = new SpeechSynthesisUtterance("語音試聽。請 1 A 班家長準備，你嘅小朋友放學啦！");
+  utterance.lang = 'zh-HK';
+  utterance.rate = 0.88;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
 }
 
 // 播放叮噹提示音
@@ -191,22 +214,26 @@ function processSpeechQueue() {
   window.speechSynthesis.speak(utterance);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btnShowDisplay')?.addEventListener('click', () => switchView('display'));
-  document.getElementById('btnShowControl')?.addEventListener('click', () => switchView('control'));
-  document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
+function scheduleClassAnnouncement(className, timestamp) {
+  const existing = pendingAnnouncements.get(className);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    pendingAnnouncements.delete(className);
+    const info = currentFirestoreData[className];
+    if (info && info.status === 'active' && info.timestamp === timestamp) {
+      speakCantonese(getDismissalAnnouncement(className));
+    }
+  }, ANNOUNCE_DELAY_MS);
+  pendingAnnouncements.set(className, timer);
+}
 
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
+  document.getElementById('btnUndoLast')?.addEventListener('click', undoLastDismissal);
+  document.getElementById('btnTestSound')?.addEventListener('click', playTestAnnouncement);
   document.getElementById('btnPublishNotice')?.addEventListener('click', publishNotice);
   document.getElementById('btnClearNotice')?.addEventListener('click', clearNotice);
   document.getElementById('btnManagePresets')?.addEventListener('click', managePresets);
-
-  document.getElementById('btnCloseNoticeModal')?.addEventListener('click', () => {
-    isModalClosedByUser = true;
-    const modal = document.getElementById('noticeModal');
-    if (modal) modal.classList.remove('active');
-  });
-
-  initAudioSystem();
   setInterval(checkAndExpireClasses, 1000);
 });
 
@@ -294,17 +321,17 @@ function initRealtimeListener() {
     showLoading(false);
     const newData = docSnap.exists() ? docSnap.data() : {};
 
-    if (checkDailyAutoReset(newData)) return;
+    if (isControlPage && isSchoolUser(auth.currentUser) && checkDailyAutoReset(newData)) return;
 
     ALL_CLASSES.forEach(cls => {
       const newStatus = newData[cls]?.status;
       const oldStatus = previousFirestoreData[cls]?.status;
-      if (hasLoadedOnce && oldStatus !== 'active' && newStatus === 'active') {
-        speakCantonese(getDismissalAnnouncement(cls));
+      if (isDisplayPage && hasLoadedOnce && oldStatus !== 'active' && newStatus === 'active') {
+        scheduleClassAnnouncement(cls, newData[cls]?.timestamp);
       }
     });
 
-    if (hasLoadedOnce && newData._announcement && newData._announcement !== previousFirestoreData._announcement) {
+    if (isDisplayPage && hasLoadedOnce && newData._announcement && newData._announcement !== previousFirestoreData._announcement) {
       isModalClosedByUser = false;
       playDingDong();
       setTimeout(() => {
@@ -348,6 +375,7 @@ function renderNoticeOverlay(data) {
 function renderDisplayView(data) {
   const activeWrapper = document.getElementById('activeClassesWrapper');
   const gridContainer = document.getElementById('displayClassGrid');
+  if (!activeWrapper || !gridContainer) return;
 
   const activeClasses = [];
   gridContainer.innerHTML = '';
@@ -396,8 +424,22 @@ function renderDisplayView(data) {
   }
 }
 
+function updateUndoButton(data) {
+  const btn = document.getElementById('btnUndoLast');
+  if (!btn) return;
+  const last = data._lastAction;
+  if (last && last.className) {
+    btn.disabled = false;
+    btn.textContent = `撤銷 ${last.className}`;
+  } else {
+    btn.disabled = true;
+    btn.textContent = '撤銷上一班';
+  }
+}
+
 function renderControlView(data) {
   const gridContainer = document.getElementById('controlClassGrid');
+  if (!gridContainer) return;
   gridContainer.innerHTML = '';
 
   ALL_CLASSES.forEach(cls => {
@@ -418,6 +460,7 @@ function renderControlView(data) {
   }
 
   renderPresetButtons(data._custom_presets || DEFAULT_PRESETS);
+  updateUndoButton(data);
 }
 
 function renderPresetButtons(presets) {
@@ -529,16 +572,47 @@ async function clearNotice() {
 }
 
 async function triggerClassDismissal(className) {
+  const previous = currentFirestoreData[className] || { status: 'waiting', timestamp: 0 };
+  const timestamp = Date.now();
+  const payload = {
+    [`${className}.status`]: 'active',
+    [`${className}.timestamp`]: timestamp,
+    _lastAction: {
+      className,
+      status: previous.status || 'waiting',
+      timestamp: previous.timestamp || 0
+    }
+  };
   try {
     showLoading(true);
+    await updateDoc(DISMISSAL_DOC_REF, payload);
+  } catch (e) {
+    const initialData = {
+      [className]: { status: 'active', timestamp },
+      _lastAction: payload._lastAction
+    };
+    await setDoc(DISMISSAL_DOC_REF, initialData, { merge: true });
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function undoLastDismissal() {
+  const last = currentFirestoreData._lastAction;
+  if (!last || !last.className) {
+    if (typeof Swal !== 'undefined') Swal.fire('沒有可撤銷的操作', '', 'info');
+    return;
+  }
+  showLoading(true);
+  try {
     await updateDoc(DISMISSAL_DOC_REF, {
-      [`${className}.status`]: 'active',
-      [`${className}.timestamp`]: Date.now()
+      [`${last.className}.status`]: last.status || 'waiting',
+      [`${last.className}.timestamp`]: last.timestamp || 0,
+      _lastAction: deleteField()
     });
   } catch (e) {
-    const initialData = {};
-    initialData[className] = { status: 'active', timestamp: Date.now() };
-    await setDoc(DISMISSAL_DOC_REF, initialData, { merge: true });
+    console.error(e);
+    if (typeof Swal !== 'undefined') Swal.fire('撤銷失敗', '請確認已用學校帳戶登入。', 'error');
   } finally {
     showLoading(false);
   }
@@ -564,6 +638,7 @@ async function resetAllClasses() {
       });
       resetData['_announcement'] = '';
       resetData['_lastResetDate'] = todayStr;
+      resetData['_lastAction'] = deleteField();
       await setDoc(DISMISSAL_DOC_REF, resetData, { merge: true });
       showLoading(false);
       Swal.fire('已重置！', '所有班別及通告已清空。', 'success');
@@ -571,5 +646,55 @@ async function resetAllClasses() {
   }
 }
 
-showLoading(true);
-initRealtimeListener();
+function setupControlAuth() {
+  const errorEl = document.getElementById('authError');
+  document.getElementById('btnGoogleLogin')?.addEventListener('click', async () => {
+    if (errorEl) errorEl.textContent = '';
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ hd: SCHOOL_DOMAIN, prompt: 'select_account' });
+    try {
+      const result = await signInWithPopup(auth, provider);
+      if (!isSchoolUser(result.user)) {
+        await signOut(auth);
+        if (errorEl) errorEl.textContent = '只接受 @tps.edu.hk 的學校 Google 帳戶。';
+      }
+    } catch (error) {
+      if (error.code === 'auth/popup-closed-by-user') return;
+      if (errorEl) {
+        errorEl.textContent = error.code === 'auth/operation-not-allowed'
+          ? 'Firebase 尚未啟用 Google 登入，請先在 Authentication 開啟 Google。'
+          : '登入失敗，請再試一次。';
+      }
+      console.error(error);
+    }
+  });
+
+  document.getElementById('btnLogout')?.addEventListener('click', () => signOut(auth));
+
+  onAuthStateChanged(auth, (user) => {
+    if (!isSchoolUser(user)) {
+      document.body.classList.add('control-locked');
+      document.body.classList.remove('control-ready');
+      if (user) signOut(auth);
+      return;
+    }
+    document.body.classList.remove('control-locked');
+    document.body.classList.add('control-ready');
+    const who = document.getElementById('signedInAs');
+    if (who) who.textContent = user.email;
+    if (!listenerStarted) {
+      listenerStarted = true;
+      showLoading(true);
+      initRealtimeListener();
+    }
+  });
+}
+
+if (isDisplayPage) {
+  setupDisplayAudioShortcut();
+  showLoading(true);
+  listenerStarted = true;
+  initRealtimeListener();
+} else if (isControlPage) {
+  setupControlAuth();
+}

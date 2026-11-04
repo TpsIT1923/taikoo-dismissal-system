@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>太古小學 - 放學控制台</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body data-page="control" class="control-locked">
+
+  <div id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" class="school-logo">
+      <h1>放學控制台</h1>
+      <p>請使用學校 Google 帳戶登入。只接受 @tps.edu.hk。</p>
+      <button id="btnGoogleLogin" class="btn-login" type="button">使用學校 Google 帳戶登入</button>
+      <p id="authError" class="auth-error" role="alert"></p>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <p>系統連線中，請稍候...</p>
+  </div>
+
+  <div class="app-container">
+    <header class="app-header">
+      <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" class="school-logo">
+      <span class="school-name">太古小學</span>
+      <div class="header-right-tools">
+        <span id="signedInAs" class="signed-in-as"></span>
+        <button id="btnLogout" class="btn-logout" type="button">登出</button>
+        <div id="liveClock" class="header-clock">--:--:--</div>
+      </div>
+    </header>
+
+    <main id="controlView" class="view-section active">
+      <div class="card notice-control-card">
+        <div class="section-heading">
+          <div class="card-title card-title-left">發佈家長即時通告</div>
+          <button id="btnManagePresets" class="btn-manage-presets" type="button">管理快捷範本</button>
+        </div>
+
+        <div class="notice-input-group">
+          <input type="text" id="noticeInput" placeholder="輸入通告內容 (例如：暴雨警告，延遲15分鐘放學)" maxlength="60">
+          <button id="btnPublishNotice" class="btn-notice-publish" type="button">發佈通告</button>
+          <button id="btnClearNotice" class="btn-notice-clear" type="button">清除通告</button>
+        </div>
+
+        <div class="quick-preset-group">
+          <span class="preset-label">快捷範本：</span>
+          <div id="presetButtonsContainer" class="preset-buttons-container"></div>
+        </div>
+      </div>
+
+      <div class="card control-panel">
+        <div class="control-header">
+          <div class="card-title card-title-left">放學控制台</div>
+          <div class="control-actions">
+            <button id="btnTestSound" class="btn-test-sound" type="button">試音</button>
+            <button id="btnUndoLast" class="btn-undo" type="button" disabled>撤銷上一班</button>
+            <button id="btnResetAll" class="btn-reset" type="button">重置所有班別</button>
+          </div>
+        </div>
+        <p class="subtitle">點擊班別開啟「正在放學」。5 秒內可撤銷，期間大堂不會廣播。3 分鐘後自動歸類為已放學。</p>
+        <div id="controlClassGrid" class="class-grid-interactive"></div>
+      </div>
+    </main>
+
+    <footer class="app-footer">由太古小學開發 版權歸太古小學所有</footer>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

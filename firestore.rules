@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@tps\\.edu\\.hk$');
+    }
+
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function expiryOk(k) {
+      return resource.data[k].status == 'active'
+        && request.resource.data[k].status == 'done'
+        && request.resource.data[k].timestamp == resource.data[k].timestamp
+        && request.resource.data[k].timestamp is number
+        && request.time.toMillis() >= resource.data[k].timestamp + 180000;
+    }
+
+    function publicExpiry() {
+      return changed().size() > 0
+        && changed().hasOnly(['1A','1B','1C','1D','1E','2A','2B','2C','2D','2E','3A','3B','3C','3D','3E','4A','4B','4C','4D','4E','5A','5B','5C','5D','5E','6A','6B','6C','6D','6E'])
+        && (!changed().hasAny(['1A']) || expiryOk('1A'))
+        && (!changed().hasAny(['1B']) || expiryOk('1B'))
+        && (!changed().hasAny(['1C']) || expiryOk('1C'))
+        && (!changed().hasAny(['1D']) || expiryOk('1D'))
+        && (!changed().hasAny(['1E']) || expiryOk('1E'))
+        && (!changed().hasAny(['2A']) || expiryOk('2A'))
+        && (!changed().hasAny(['2B']) || expiryOk('2B'))
+        && (!changed().hasAny(['2C']) || expiryOk('2C'))
+        && (!changed().hasAny(['2D']) || expiryOk('2D'))
+        && (!changed().hasAny(['2E']) || expiryOk('2E'))
+        && (!changed().hasAny(['3A']) || expiryOk('3A'))
+        && (!changed().hasAny(['3B']) || expiryOk('3B'))
+        && (!changed().hasAny(['3C']) || expiryOk('3C'))
+        && (!changed().hasAny(['3D']) || expiryOk('3D'))
+        && (!changed().hasAny(['3E']) || expiryOk('3E'))
+        && (!changed().hasAny(['4A']) || expiryOk('4A'))
+        && (!changed().hasAny(['4B']) || expiryOk('4B'))
+        && (!changed().hasAny(['4C']) || expiryOk('4C'))
+        && (!changed().hasAny(['4D']) || expiryOk('4D'))
+        && (!changed().hasAny(['4E']) || expiryOk('4E'))
+        && (!changed().hasAny(['5A']) || expiryOk('5A'))
+        && (!changed().hasAny(['5B']) || expiryOk('5B'))
+        && (!changed().hasAny(['5C']) || expiryOk('5C'))
+        && (!changed().hasAny(['5D']) || expiryOk('5D'))
+        && (!changed().hasAny(['5E']) || expiryOk('5E'))
+        && (!changed().hasAny(['6A']) || expiryOk('6A'))
+        && (!changed().hasAny(['6B']) || expiryOk('6B'))
+        && (!changed().hasAny(['6C']) || expiryOk('6C'))
+        && (!changed().hasAny(['6D']) || expiryOk('6D'))
+        && (!changed().hasAny(['6E']) || expiryOk('6E'));
+    }
+
+    match /dismissal_system/{docId} {
+      allow read: if true;
+      allow create, delete: if isStaff();
+      allow update: if isStaff() || publicExpiry();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
