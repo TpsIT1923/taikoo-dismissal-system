@@ -52,6 +52,7 @@ const pendingAnnouncements = new Map();
 // 語音廣播佇列
 let speechQueue = [];
 let isSpeaking = false;
+let currentAudio = null;
 
 function isSchoolUser(user) {
   return Boolean(user && user.email && user.emailVerified && user.email.toLowerCase().endsWith(`@${SCHOOL_DOMAIN}`));
@@ -125,21 +126,35 @@ function setupDisplayAudioShortcut() {
     if (isAudioEnabled) {
       speakCantonese("語音廣播系統已開啟");
     } else {
-      window.speechSynthesis?.cancel();
-      speechQueue = [];
-      isSpeaking = false;
+      stopAllAudio();
     }
     paintAudioState();
   });
 }
 
 function playTestAnnouncement() {
-  if (!('speechSynthesis' in window)) return;
-  const utterance = new SpeechSynthesisUtterance("語音試聽。請 1 A 班家長準備，你嘅小朋友放學啦！");
-  utterance.lang = 'zh-HK';
-  utterance.rate = 0.88;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
+  const audio = new Audio("/audio/1A.m4a");
+  audio.play().catch(() => {});
+}
+
+function stopAllAudio() {
+  speechQueue = [];
+  isSpeaking = false;
+  window.speechSynthesis?.cancel();
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+}
+
+function enqueueAudio(item) {
+  if (!isAudioEnabled) return;
+  speechQueue.push(item);
+  processSpeechQueue();
+}
+
+function playClassRecording(className) {
+  enqueueAudio({ type: "file", src: `/audio/${className}.m4a` });
 }
 
 // 播放叮噹提示音
@@ -180,37 +195,50 @@ function playDingDong() {
 
 // 廣東話語音朗讀
 function speakCantonese(text) {
-  if (!isAudioEnabled || !('speechSynthesis' in window)) return;
+  enqueueAudio({ type: "speech", text });
+}
 
-  speechQueue.push(text);
+function finishQueueItem() {
+  currentAudio = null;
+  isSpeaking = false;
   processSpeechQueue();
 }
 
 function processSpeechQueue() {
   if (!isAudioEnabled) {
-    speechQueue = [];
-    isSpeaking = false;
+    stopAllAudio();
     return;
   }
   if (isSpeaking || speechQueue.length === 0) return;
 
   isSpeaking = true;
-  const textToSpeak = speechQueue.shift();
-  const utterance = new SpeechSynthesisUtterance(textToSpeak);
-  
-  utterance.lang = 'zh-HK'; // 廣東話
-  utterance.rate = 0.88;    // 保持清晰自然語速
+  const item = speechQueue.shift();
 
-  utterance.onend = () => {
-    isSpeaking = false;
-    processSpeechQueue();
-  };
+  if (item.type === "file") {
+    const audio = new Audio(item.src);
+    currentAudio = audio;
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      finishQueueItem();
+    };
+    audio.onended = done;
+    audio.onerror = done;
+    audio.play().catch(done);
+    return;
+  }
 
-  utterance.onerror = () => {
-    isSpeaking = false;
-    processSpeechQueue();
-  };
+  if (!('speechSynthesis' in window)) {
+    finishQueueItem();
+    return;
+  }
 
+  const utterance = new SpeechSynthesisUtterance(item.text);
+  utterance.lang = 'zh-HK';
+  utterance.rate = 0.88;
+  utterance.onend = finishQueueItem;
+  utterance.onerror = finishQueueItem;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -221,7 +249,7 @@ function scheduleClassAnnouncement(className, timestamp) {
     pendingAnnouncements.delete(className);
     const info = currentFirestoreData[className];
     if (info && info.status === 'active' && info.timestamp === timestamp) {
-      speakCantonese(getDismissalAnnouncement(className));
+      playClassRecording(className);
     }
   }, ANNOUNCE_DELAY_MS);
   pendingAnnouncements.set(className, timer);
