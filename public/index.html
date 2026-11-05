@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/images/logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/images/logo.png">
   <title>太古小學 - 放學指示系統</title>
-  <link rel="stylesheet" href="/css/style.css?v=20261105d">
+  <link rel="stylesheet" href="/css/style.css?v=20261105e">
 </head>
 <body data-page="display">
 
@@ -15,6 +17,7 @@
 
   <div id="noticeModal" class="notice-modal-overlay">
     <div class="notice-modal-card">
+      <button id="btnCloseNoticeModal" class="modal-close-btn" type="button" aria-label="關閉通告">×</button>
       <div class="notice-modal-header">重要通告</div>
       <div id="noticeModalBody" class="notice-modal-body">--</div>
     </div>
@@ -22,10 +25,15 @@
 
   <div class="app-container">
     <header class="app-header">
-      <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" class="school-logo">
-      <span class="school-name">太古小學</span>
+      <div class="brand-lockup">
+        <img src="/images/logo.png" alt="放學廣播" class="school-logo">
+        <div>
+          <div class="school-name">太古小學</div>
+          <div class="school-sub">放學指示</div>
+        </div>
+      </div>
       <div class="header-right-tools">
-        <div id="audioState" class="audio-state">廣播未開啟</div>
+        <button id="btnToggleAudio" class="audio-state" type="button">廣播未開啟</button>
         <div id="liveClock" class="header-clock">--:--:--</div>
       </div>
     </header>
@@ -47,6 +55,6 @@
     <footer class="app-footer">由太古小學開發 版權歸太古小學所有</footer>
   </div>
 
-  <script type="module" src="/js/app.js?v=20261105d"></script>
+  <script type="module" src="/js/app.js?v=20261105e"></script>
 </body>
 </html>

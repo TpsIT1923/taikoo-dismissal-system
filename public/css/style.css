@@ -51,23 +51,43 @@ body[data-page="display"] * {
   pointer-events: none;
 }
 
+body[data-page="display"] #btnToggleAudio,
+body[data-page="display"] #btnCloseNoticeModal {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.school-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+  border: 1px solid rgba(16, 36, 63, 0.12);
+  flex-shrink: 0;
+}
+
+.school-sub {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
 .app-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 52px;
+  min-height: 56px;
   flex-shrink: 0;
   position: relative;
-}
-
-.school-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 12px rgba(16, 36, 63, 0.16);
-  flex-shrink: 0;
 }
 
 .school-name {
@@ -108,16 +128,18 @@ body[data-page="display"] * {
 /* 語音按鈕 */
 .audio-state {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: #9f1239;
-  background: #fff1f2;
-  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
   padding: 6px 12px;
 }
 
 .audio-state.is-on {
   color: #166534;
-  background: #dcfce7;
+  background: #ffffff;
+  border-color: #86efac;
 }
 
 .signed-in-as {
@@ -471,8 +493,7 @@ body[data-page="display"] * {
 .btn-logout,
 .btn-login,
 .btn-preset,
-.nav-btn,
-.control-btn {
+.nav-btn {
   font-weight: 600;
   cursor: pointer;
   border: none;
@@ -580,6 +601,18 @@ body[data-page="display"] * {
   container-type: size;
   overflow: hidden;
   border-radius: 4px;
+  border: 1.5px solid #94a3b8;
+  background: #ffffff;
+}
+
+.control-btn.status-waiting {
+  border-color: color-mix(in srgb, var(--grade-color) 72%, #64748b);
+  background: #ffffff;
+}
+
+.control-btn.status-active,
+.control-btn.status-done {
+  border-color: rgba(16, 24, 40, 0.28);
 }
 
 .btn-reset {
@@ -659,4 +692,79 @@ body.control-locked .loading-overlay {
   color: #be123c;
   margin-top: 12px;
   margin-bottom: 0;
+}
+
+.duration-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.duration-setting input {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.btn-save-minutes {
+  background: #ffffff;
+  color: var(--navy);
+  border: 1px solid var(--navy);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  body[data-page="control"] {
+    overflow: auto;
+    padding: 10px;
+  }
+
+  body[data-page="control"] .app-container {
+    height: auto;
+    max-height: none;
+  }
+
+  .app-header {
+    height: auto;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-right-tools {
+    position: static;
+    transform: none;
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .signed-in-as {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .notice-input-group,
+  .control-header,
+  .control-actions,
+  .duration-setting {
+    flex-wrap: wrap;
+  }
+
+  .class-grid-interactive {
+    grid-template-rows: none;
+    grid-auto-rows: 72px;
+  }
+
+  .school-name {
+    font-size: 18px;
+  }
 }

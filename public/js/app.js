@@ -37,7 +37,17 @@ const DEFAULT_PRESETS = [
 ];
 
 const DISMISSAL_DOC_REF = doc(db, "dismissal_system", "live_status");
-const THREE_MINUTES_MS = 3 * 60 * 1000;
+const DEFAULT_SLIDE_MINUTES = 3;
+
+function getSlideMinutes(data) {
+  const minutes = Number(data && data._slideMinutes);
+  if (!Number.isFinite(minutes)) return DEFAULT_SLIDE_MINUTES;
+  return Math.min(30, Math.max(1, Math.round(minutes)));
+}
+
+function getSlideMs(data) {
+  return getSlideMinutes(data) * 60 * 1000;
+}
 
 let currentFirestoreData = {};
 let previousFirestoreData = {};
@@ -111,24 +121,34 @@ function initLiveClock() {
 initLiveClock();
 
 function paintAudioState() {
-  const label = document.getElementById('audioState');
+  const label = document.getElementById('btnToggleAudio');
   if (!label) return;
-  label.textContent = isAudioEnabled ? "廣播已開啟" : "廣播未開啟";
+  label.textContent = isAudioEnabled ? "關閉廣播" : "開啟廣播";
   label.classList.toggle('is-on', isAudioEnabled);
+  label.setAttribute('aria-pressed', isAudioEnabled ? 'true' : 'false');
+}
+
+function toggleDisplayAudio() {
+  isAudioEnabled = !isAudioEnabled;
+  if (isAudioEnabled) {
+    speakCantonese("語音廣播系統已開啟");
+  } else {
+    stopAllAudio();
+  }
+  paintAudioState();
 }
 
 function setupDisplayAudioShortcut() {
   paintAudioState();
+  document.getElementById('btnToggleAudio')?.addEventListener('click', toggleDisplayAudio);
+  document.getElementById('btnCloseNoticeModal')?.addEventListener('click', () => {
+    isModalClosedByUser = true;
+    document.getElementById('noticeModal')?.classList.remove('active');
+  });
   document.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 's')) return;
     event.preventDefault();
-    isAudioEnabled = !isAudioEnabled;
-    if (isAudioEnabled) {
-      speakCantonese("語音廣播系統已開啟");
-    } else {
-      stopAllAudio();
-    }
-    paintAudioState();
+    toggleDisplayAudio();
   });
 }
 
@@ -259,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnResetAll')?.addEventListener('click', resetAllClasses);
   document.getElementById('btnUndoLast')?.addEventListener('click', undoLastDismissal);
   document.getElementById('btnTestSound')?.addEventListener('click', playTestAnnouncement);
+  document.getElementById('btnSaveMinutes')?.addEventListener('click', saveSlideMinutes);
   document.getElementById('btnPublishNotice')?.addEventListener('click', publishNotice);
   document.getElementById('btnClearNotice')?.addEventListener('click', clearNotice);
   document.getElementById('btnManagePresets')?.addEventListener('click', managePresets);
@@ -294,7 +315,7 @@ async function checkAndExpireClasses() {
   const now = Date.now();
   const candidates = ALL_CLASSES.filter(cls => {
     const clsInfo = currentFirestoreData[cls];
-    return clsInfo && clsInfo.status === 'active' && now - clsInfo.timestamp >= THREE_MINUTES_MS;
+    return clsInfo && clsInfo.status === 'active' && now - clsInfo.timestamp >= getSlideMs(currentFirestoreData);
   });
   if (candidates.length === 0) return;
 
@@ -308,7 +329,7 @@ async function checkAndExpireClasses() {
       const serverNow = Date.now();
       candidates.forEach(cls => {
         const clsInfo = data[cls];
-        if (clsInfo && clsInfo.status === 'active' && serverNow - clsInfo.timestamp >= THREE_MINUTES_MS) {
+        if (clsInfo && clsInfo.status === 'active' && serverNow - clsInfo.timestamp >= getSlideMs(data)) {
           updates[`${cls}.status`] = 'done';
         }
       });
@@ -336,6 +357,7 @@ function checkDailyAutoReset(data) {
     resetData['_announcement'] = '';
     resetData['_lastResetDate'] = todayStr;
     resetData['_custom_presets'] = data._custom_presets || DEFAULT_PRESETS;
+    resetData['_slideMinutes'] = getSlideMinutes(data);
 
     setDoc(DISMISSAL_DOC_REF, resetData);
     return true;
@@ -490,6 +512,29 @@ function renderControlView(data) {
 
   renderPresetButtons(data._custom_presets || DEFAULT_PRESETS);
   updateUndoButton(data);
+  updateSlideMinutesField(data);
+}
+
+function updateSlideMinutesField(data) {
+  const input = document.getElementById('slideMinutesInput');
+  const hint = document.getElementById('slideHint');
+  const minutes = getSlideMinutes(data);
+  if (hint) hint.textContent = `點擊班別開啟「正在放學」。5 秒內可撤銷，期間大堂不會廣播。${minutes} 分鐘後收起輪播。`;
+  if (input && document.activeElement !== input) input.value = String(minutes);
+}
+
+async function saveSlideMinutes() {
+  const input = document.getElementById('slideMinutesInput');
+  const minutes = getSlideMinutes({ _slideMinutes: input ? input.value : 3 });
+  if (input) input.value = String(minutes);
+  showLoading(true);
+  try {
+    await updateDoc(DISMISSAL_DOC_REF, { _slideMinutes: minutes });
+  } catch (e) {
+    await setDoc(DISMISSAL_DOC_REF, { _slideMinutes: minutes }, { merge: true });
+  } finally {
+    showLoading(false);
+  }
 }
 
 function renderPresetButtons(presets) {

@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/images/logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/images/logo.png">
   <title>太古小學 - 放學控制台</title>
-  <link rel="stylesheet" href="/css/style.css?v=20261105d">
+  <link rel="stylesheet" href="/css/style.css?v=20261105e">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body data-page="control" class="control-locked">
 
   <div id="authGate" class="auth-gate">
     <div class="auth-card">
-      <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" class="school-logo">
+      <img src="/images/logo.png" alt="放學廣播" class="school-logo">
       <h1>放學控制台</h1>
       <p>請使用學校 Google 帳戶登入。只接受 @tps.edu.hk。</p>
       <button id="btnGoogleLogin" class="btn-login" type="button">使用學校 Google 帳戶登入</button>
@@ -26,8 +28,13 @@
 
   <div class="app-container">
     <header class="app-header">
-      <img src="https://i.postimg.cc/0N0Ktx79/images_(1).png" alt="太古小學 Logo" class="school-logo">
-      <span class="school-name">太古小學</span>
+      <div class="brand-lockup">
+        <img src="/images/logo.png" alt="放學廣播" class="school-logo">
+        <div>
+          <div class="school-name">太古小學</div>
+          <div class="school-sub">放學控制台</div>
+        </div>
+      </div>
       <div class="header-right-tools">
         <span id="signedInAs" class="signed-in-as"></span>
         <button id="btnLogout" class="btn-logout" type="button">登出</button>
@@ -63,7 +70,13 @@
             <button id="btnResetAll" class="btn-reset" type="button">重置所有班別</button>
           </div>
         </div>
-        <p class="subtitle">點擊班別開啟「正在放學」。5 秒內可撤銷，期間大堂不會廣播。3 分鐘後自動歸類為已放學。</p>
+        <p id="slideHint" class="subtitle">點擊班別開啟「正在放學」。5 秒內可撤銷，期間大堂不會廣播。</p>
+        <div class="duration-setting">
+          <label for="slideMinutesInput">輪播顯示</label>
+          <input id="slideMinutesInput" type="number" min="1" max="30" step="1" value="3">
+          <span>分鐘後收起</span>
+          <button id="btnSaveMinutes" class="btn-save-minutes" type="button">設定</button>
+        </div>
         <div id="controlClassGrid" class="class-grid-interactive"></div>
       </div>
     </main>
@@ -71,6 +84,6 @@
     <footer class="app-footer">由太古小學開發 版權歸太古小學所有</footer>
   </div>
 
-  <script type="module" src="/js/app.js?v=20261105d"></script>
+  <script type="module" src="/js/app.js?v=20261105e"></script>
 </body>
 </html>

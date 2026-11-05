@@ -11,12 +11,20 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    function slideWindowMs() {
+      return resource.data._slideMinutes is int
+        && resource.data._slideMinutes >= 1
+        && resource.data._slideMinutes <= 30
+        ? resource.data._slideMinutes * 60000
+        : 180000;
+    }
+
     function expiryOk(k) {
       return resource.data[k].status == 'active'
         && request.resource.data[k].status == 'done'
         && request.resource.data[k].timestamp == resource.data[k].timestamp
         && request.resource.data[k].timestamp is number
-        && request.time.toMillis() >= resource.data[k].timestamp + 180000;
+        && request.time.toMillis() >= resource.data[k].timestamp + slideWindowMs();
     }
 
     function publicExpiry() {
