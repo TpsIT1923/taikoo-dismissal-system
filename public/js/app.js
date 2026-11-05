@@ -659,12 +659,20 @@ function setupControlAuth() {
         if (errorEl) errorEl.textContent = '只接受 @tps.edu.hk 的學校 Google 帳戶。';
       }
     } catch (error) {
-      if (error.code === 'auth/popup-closed-by-user') return;
-      if (errorEl) {
-        errorEl.textContent = error.code === 'auth/operation-not-allowed'
-          ? 'Firebase 尚未啟用 Google 登入，請先在 Authentication 開啟 Google。'
-          : '登入失敗，請再試一次。';
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') return;
+      const detail = `${error.code || ''} ${error.message || ''}`;
+      let text = '登入失敗，請再試一次。';
+      if (error.code === 'auth/popup-blocked') {
+        text = '瀏覽器擋住了登入視窗，請允許彈出式視窗後再試。';
+      } else if (error.code === 'auth/unauthorized-domain') {
+        text = '這個網址未獲授權。請在 Firebase Authentication 的授權網域加入 taikoo-dismissal-system.web.app。';
+      } else if (
+        error.code === 'auth/operation-not-allowed' ||
+        /requested action is invalid|CONFIGURATION_NOT_FOUND|configuration-not-found/i.test(detail)
+      ) {
+        text = 'Firebase 尚未開啟 Google 登入。請到 Authentication 按「開始使用」，再啟用 Google 登入方式。';
       }
+      if (errorEl) errorEl.textContent = text;
       console.error(error);
     }
   });
