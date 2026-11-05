@@ -4,7 +4,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRe
 
 const firebaseConfig = {
   apiKey: "AIzaSyCYndV2aTf1KEB6yBgjjhOoUIqUKf3jsJY",
-  authDomain: "taikoo-dismissal-system.web.app",
+  authDomain: "taikoo-dismissal-system.firebaseapp.com",
   projectId: "taikoo-dismissal-system",
   storageBucket: "taikoo-dismissal-system.firebasestorage.app",
   messagingSenderId: "881254467284",
@@ -754,6 +754,11 @@ function createSchoolProvider() {
 }
 
 function setupControlAuth() {
+  if (location.hostname === "taikoo-dismissal-system.web.app") {
+    location.replace(`https://taikoo-dismissal-system.firebaseapp.com${location.pathname}${location.search}${location.hash}`);
+    return;
+  }
+
   const errorEl = document.getElementById('authError');
 
   getRedirectResult(auth).then(async (result) => {
