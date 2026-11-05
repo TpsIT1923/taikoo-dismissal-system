@@ -1,10 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, doc, onSnapshot, setDoc, updateDoc, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCYndV2aTf1KEB6yBgjjhOoUIqUKf3jsJY",
-  authDomain: "taikoo-dismissal-system.firebaseapp.com",
+  authDomain: "taikoo-dismissal-system.web.app",
   projectId: "taikoo-dismissal-system",
   storageBucket: "taikoo-dismissal-system.firebasestorage.app",
   messagingSenderId: "881254467284",
@@ -396,7 +396,7 @@ function renderDisplayView(data) {
     const item = document.createElement('div');
     const gradeClass = getGradeClass(cls);
     item.className = `status-box ${gradeClass} ${displayStatusClass}`;
-    item.textContent = cls;
+    item.innerHTML = `<span class="class-label">${cls}</span>`;
     gridContainer.appendChild(item);
   });
 
@@ -416,8 +416,9 @@ function renderDisplayView(data) {
       return `<span class="badge-item ${gradeClass}">${cls}</span>`;
     }).join('');
 
+    const seconds = Math.max(36, activeClasses.length * 7);
     activeWrapper.innerHTML = `
-      <div class="marquee-track-slideout">
+      <div class="marquee-track-slideout" style="animation-duration:${seconds}s">
         ${badgesHTML}
       </div>
     `;
@@ -448,7 +449,7 @@ function renderControlView(data) {
     const gradeClass = getGradeClass(cls);
     
     btn.className = `control-btn ${gradeClass} status-${clsInfo.status}`;
-    btn.textContent = cls;
+    btn.innerHTML = `<span class="class-label">${cls}</span>`;
 
     btn.addEventListener('click', () => triggerClassDismissal(cls));
     gridContainer.appendChild(btn);
@@ -646,33 +647,68 @@ async function resetAllClasses() {
   }
 }
 
+function usesRedirectSignIn() {
+  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  return mobile || coarse;
+}
+
+function describeAuthError(error) {
+  if (!error || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') return "";
+  const detail = `${error.code || ""} ${error.message || ""}`;
+  if (/missing initial state/i.test(detail)) {
+    return "手機瀏覽器未能完成上一次登入。請再按一次登入。";
+  }
+  if (error.code === 'auth/popup-blocked') {
+    return "瀏覽器擋住了登入視窗，請允許彈出式視窗後再試。";
+  }
+  if (error.code === 'auth/unauthorized-domain') {
+    return "這個網址未獲授權。請在 Firebase Authentication 的授權網域加入 taikoo-dismissal-system.web.app。";
+  }
+  if (
+    error.code === 'auth/operation-not-allowed' ||
+    /requested action is invalid|CONFIGURATION_NOT_FOUND|configuration-not-found/i.test(detail)
+  ) {
+    return "Firebase 尚未開啟 Google 登入。請到 Authentication 按「開始使用」，再啟用 Google 登入方式。";
+  }
+  return "登入失敗，請再試一次。";
+}
+
+function createSchoolProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ hd: SCHOOL_DOMAIN, prompt: 'select_account' });
+  return provider;
+}
+
 function setupControlAuth() {
   const errorEl = document.getElementById('authError');
+
+  getRedirectResult(auth).then(async (result) => {
+    if (result?.user && !isSchoolUser(result.user)) {
+      await signOut(auth);
+      if (errorEl) errorEl.textContent = '只接受 @tps.edu.hk 的學校 Google 帳戶。';
+    }
+  }).catch((error) => {
+    const text = describeAuthError(error);
+    if (text && errorEl) errorEl.textContent = text;
+    console.error(error);
+  });
+
   document.getElementById('btnGoogleLogin')?.addEventListener('click', async () => {
     if (errorEl) errorEl.textContent = '';
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ hd: SCHOOL_DOMAIN, prompt: 'select_account' });
     try {
-      const result = await signInWithPopup(auth, provider);
-      if (!isSchoolUser(result.user)) {
+      if (usesRedirectSignIn()) {
+        await signInWithRedirect(auth, createSchoolProvider());
+        return;
+      }
+      const result = await signInWithPopup(auth, createSchoolProvider());
+      if (result && !isSchoolUser(result.user)) {
         await signOut(auth);
         if (errorEl) errorEl.textContent = '只接受 @tps.edu.hk 的學校 Google 帳戶。';
       }
     } catch (error) {
-      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') return;
-      const detail = `${error.code || ''} ${error.message || ''}`;
-      let text = '登入失敗，請再試一次。';
-      if (error.code === 'auth/popup-blocked') {
-        text = '瀏覽器擋住了登入視窗，請允許彈出式視窗後再試。';
-      } else if (error.code === 'auth/unauthorized-domain') {
-        text = '這個網址未獲授權。請在 Firebase Authentication 的授權網域加入 taikoo-dismissal-system.web.app。';
-      } else if (
-        error.code === 'auth/operation-not-allowed' ||
-        /requested action is invalid|CONFIGURATION_NOT_FOUND|configuration-not-found/i.test(detail)
-      ) {
-        text = 'Firebase 尚未開啟 Google 登入。請到 Authentication 按「開始使用」，再啟用 Google 登入方式。';
-      }
-      if (errorEl) errorEl.textContent = text;
+      const text = describeAuthError(error);
+      if (text && errorEl) errorEl.textContent = text;
       console.error(error);
     }
   });
